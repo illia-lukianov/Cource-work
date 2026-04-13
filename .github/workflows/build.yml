@@ -65,6 +65,7 @@ jobs:
           Get-Content .env
 
       - name: Verify .env file
+        shell: bash
         run: |
           if [ -f .env ]; then
             echo "✅ .env file exists"
