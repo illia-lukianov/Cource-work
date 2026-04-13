@@ -28,7 +28,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create .env file
+      - name: Create .env file (Unix)
+        if: runner.os != 'Windows'
         env:
           DB_SERVER: ${{ secrets.DB_SERVER }}
           DB_DATABASE: ${{ secrets.DB_DATABASE }}
@@ -44,6 +45,24 @@ jobs:
           EOF
           echo "✅ .env file created"
           cat .env
+
+      - name: Create .env file (Windows)
+        if: runner.os == 'Windows'
+        env:
+          DB_SERVER: ${{ secrets.DB_SERVER }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          @"
+          DB_SERVER=$env:DB_SERVER
+          DB_DATABASE=$env:DB_DATABASE
+          DB_USER=$env:DB_USER
+          DB_PASSWORD=$env:DB_PASSWORD
+          DB_PORT=1433
+          "@ | Out-File -FilePath .env -Encoding UTF8
+          Write-Host "✅ .env file created"
+          Get-Content .env
 
       - name: Verify .env file
         run: |
