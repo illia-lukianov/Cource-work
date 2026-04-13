@@ -7,7 +7,15 @@ const envPaths = [
   path.join(process.resourcesPath, ".env"),
   path.resolve(process.cwd(), ".env"),
   path.resolve(__dirname, "../../.env"),
+  path.resolve(__dirname, "../../../.env"),
+  path.resolve(__dirname, "../../../../.env"),
 ];
+
+console.log("[PATHS DEBUG]");
+console.log("  process.cwd():", process.cwd());
+console.log("  process.resourcesPath:", process.resourcesPath);
+console.log("  __dirname:", __dirname);
+console.log("  __filename:", __filename);
 
 const envFilePath = envPaths.find((p) => {
   const exists = fs.existsSync(p);
@@ -20,6 +28,7 @@ const envFilePath = envPaths.find((p) => {
 if (envFilePath) {
   console.log(`[DEBUG] Loading .env from: ${envFilePath}`);
   dotenv.config({ path: envFilePath });
+  console.log("[DEBUG] dotenv.config completed");
 } else {
   console.warn("⚠️ .env file not found in any of these paths:", envPaths);
   console.warn(

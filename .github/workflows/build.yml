@@ -60,6 +60,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Check if .env exists in package
+        shell: bash
+        run: |
+          if ls -la out/bookstore-app-*/Contents/Resources/app.asar 2>/dev/null | head -5; then
+            echo "📦 Checking .env in asar:"
+            npx asar l out/bookstore-app-darwin-*/Contents/Resources/app.asar 2>/dev/null | grep "\.env" || echo "⚠️ .env not in asar"
+          fi
+
       - name: List output files (Debug)
         shell: bash
         run: ls -R out/make/
