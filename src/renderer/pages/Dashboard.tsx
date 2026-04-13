@@ -6,7 +6,7 @@ const Dashboard = () => {
   const [data, setData] = useState<any[]>([]);
   const [statsData, setStatsData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Стан для кнопок
+  const [isSubmitting, setIsSubmitting] = useState(false); 
   const [activeTab, setActiveTab] = useState('home');
   const [reportType, setReportType] = useState('sales');
   const [search, setSearch] = useState('');
@@ -65,7 +65,7 @@ const Dashboard = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true); // Блокуємо кнопку
+    setIsSubmitting(true);
 
     let channel = "";
     if (activeTab === 'books') channel = "db:create-book";
@@ -82,7 +82,7 @@ const Dashboard = () => {
         alert(res?.message || "Помилка при збереженні");
       }
     } finally {
-      setIsSubmitting(false); // Розблоковуємо кнопку
+      setIsSubmitting(false);
     }
   };
 

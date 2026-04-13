@@ -1,13 +1,21 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import started from "electron-squirrel-startup";
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
 import { connectDB } from "./database/connectDb";
-import { UserRepository } from "./database/services/user.service";
 import { BookRepository } from "./database/services/book.repository";
-import { OrderRepository } from "./database/services/order.service";
 import { CategoryRepository } from "./database/services/category.service";
+import { OrderRepository } from "./database/services/order.service";
 import { ReportService } from "./database/services/report.services";
+import { UserRepository } from "./database/services/user.service";
+if (process.platform === "win32") {
+  try {
+    if (require("electron-squirrel-startup")) {
+      app.quit();
+    }
+  } catch (e) {
+    console.error("Squirrel startup error:", e);
+  }
+}
 
 const SESSION_FILE = path.join(app.getPath("userData"), "session.json");
 
@@ -30,7 +38,7 @@ const deleteSession = () => {
   if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
 };
 
-if (started) app.quit();
+// if (started) app.quit();
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -41,15 +49,25 @@ const createWindow = () => {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      webSecurity: false,
     },
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+    const namedRendererIndex = path.join(
+      __dirname,
+      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
     );
+    const defaultRendererIndex = path.join(__dirname, "../renderer/index.html");
+    const indexPath = fs.existsSync(namedRendererIndex)
+      ? namedRendererIndex
+      : defaultRendererIndex;
+
+    mainWindow
+      .loadFile(indexPath)
+      .catch((e) => console.error("Failed to load index.html:", e));
   }
 
   mainWindow.once("ready-to-show", () => mainWindow?.show());

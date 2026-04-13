@@ -7,7 +7,8 @@ export default defineConfig({
       formats: ['cjs'],
     },
     rollupOptions: {
-      external: ['electron', ...Object.keys(require('./package.json').dependencies || {})],
+      external: ['electron'],
     },
+    minify: false,
   },
 });

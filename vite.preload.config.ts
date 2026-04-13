@@ -1,14 +1,15 @@
-// vite.preload.config.ts
 import { defineConfig } from 'vite';
 
 export default defineConfig({
   build: {
+    outDir: '.vite/build', 
     lib: {
-      // Зміни цей шлях на правильний (де зараз лежить твій файл)
-      // Якщо ти поклав його в папку preload, то:
-      entry: 'src/preload/preload.ts', 
+      entry: 'src/preload/preload.ts',
       formats: ['cjs'],
+      fileName: () => 'preload.js',
     },
-    // ... інший код
+    rollupOptions: {
+      external: ['electron'],
+    },
   },
 });

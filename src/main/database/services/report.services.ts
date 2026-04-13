@@ -1,27 +1,29 @@
 import { connectDB } from "../connectDb";
-import sql from "mssql";
+import {
+  getCustomerReportQuery,
+  getSalesReportQuery,
+} from "../queries/report.queries";
 
 export const ReportService = {
   async getReport(type: string): Promise<any[]> {
     try {
       const pool = await connectDB();
       const request = pool.request();
-      
-      let procedureName = "";
 
+      let query = "";
       if (type === "sales") {
-        procedureName = "sp_GetSalesReport";
+        query = getSalesReportQuery;
       } else if (type === "customers") {
-        procedureName = "sp_GetCustomerReport";
+        query = getCustomerReportQuery;
       } else {
         return [];
       }
 
-      const result = await request.execute(procedureName);
-      return result.recordset;
+      const result = await request.query(query);
+      return result.recordset || [];
     } catch (err) {
       console.error(`Помилка отримання звіту (${type}):`, err);
       return [];
     }
-  }
+  },
 };
