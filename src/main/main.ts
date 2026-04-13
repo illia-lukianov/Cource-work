@@ -154,6 +154,10 @@ const registerIpcHandlers = () => {
 };
 
 app.whenReady().then(async () => {
+  console.log("[APP START] Current working directory:", process.cwd());
+  console.log("[APP START] __dirname:", __dirname);
+  console.log("[APP START] process.resourcesPath:", process.resourcesPath);
+
   loadSession();
   try {
     await connectDB();

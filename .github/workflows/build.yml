@@ -28,14 +28,37 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build and Make
-        run: npm run make
+      - name: Create .env file
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DB_SERVER: ${{ secrets.DB_SERVER }}
           DB_DATABASE: ${{ secrets.DB_DATABASE }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          cat > .env << EOF
+          DB_SERVER=$DB_SERVER
+          DB_DATABASE=$DB_DATABASE
+          DB_USER=$DB_USER
+          DB_PASSWORD=$DB_PASSWORD
+          DB_PORT=1433
+          EOF
+          echo "✅ .env file created"
+          cat .env
+
+      - name: Verify .env file
+        run: |
+          if [ -f .env ]; then
+            echo "✅ .env file exists"
+            wc -l .env
+          else
+            echo "❌ .env file NOT found"
+            ls -la
+          fi
+
+      - name: Build and Make
+        run: npm run make
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: List output files (Debug)
         shell: bash

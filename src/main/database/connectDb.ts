@@ -9,14 +9,34 @@ const envPaths = [
   path.resolve(__dirname, "../../.env"),
 ];
 
-const envFilePath = envPaths.find((p) => fs.existsSync(p));
+const envFilePath = envPaths.find((p) => {
+  const exists = fs.existsSync(p);
+  console.log(
+    `[DEBUG] Checking .env at ${p}: ${exists ? "✅ found" : "❌ not found"}`,
+  );
+  return exists;
+});
+
 if (envFilePath) {
+  console.log(`[DEBUG] Loading .env from: ${envFilePath}`);
   dotenv.config({ path: envFilePath });
 } else {
+  console.warn("⚠️ .env file not found in any of these paths:", envPaths);
   console.warn(
-    "⚠️ .env file not found. Database env vars must be set in the environment.",
+    "Available env vars:",
+    Object.keys(process.env).filter((k) => k.startsWith("DB_")),
   );
 }
+
+console.log("[DEBUG] After .env load:");
+console.log("  DB_USER:", process.env.DB_USER ? "✅ set" : "❌ not set");
+console.log(
+  "  DB_PASSWORD:",
+  process.env.DB_PASSWORD ? "✅ set" : "❌ not set",
+);
+console.log("  DB_SERVER:", process.env.DB_SERVER || "❌ empty");
+console.log("  DB_DATABASE:", process.env.DB_DATABASE || "❌ empty");
+console.log("  DB_PORT:", process.env.DB_PORT || "default 1433");
 
 const config: sql.config = {
   user: process.env.DB_USER,
@@ -35,7 +55,17 @@ let pool: sql.ConnectionPool | null = null;
 
 export async function connectDB() {
   try {
-    if (pool) return pool;
+    if (pool) {
+      console.log("[DEBUG] Using existing DB pool");
+      return pool;
+    }
+
+    console.log("[DEBUG] Attempting new DB connection with config:");
+    console.log("  server:", config.server || "❌ EMPTY");
+    console.log("  database:", config.database || "❌ EMPTY");
+    console.log("  user:", config.user ? "✅ set" : "❌ EMPTY");
+    console.log("  password:", config.password ? "✅ set" : "❌ EMPTY");
+    console.log("  port:", config.port);
 
     pool = await sql.connect(config);
     console.log("✅ Успішно підключено до Azure SQL через SQL Auth");
