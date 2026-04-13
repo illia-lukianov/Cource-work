@@ -3,16 +3,17 @@ name: Build/Release Electron App
 on:
   push:
     tags:
-      - 'v*' # Скрипт спрацює, коли ти створиш тег (наприклад, v1.0.0)
+      - 'v*' 
+
+permissions:
+  contents: write
 
 jobs:
   release:
-    runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
-        # GitHub запустить дві паралельні машини: одну з Windows, одну з macOS
         os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Check out git repository
@@ -22,29 +23,36 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
 
       - name: Build and Make
-        # Ця команда запустить твій forge make
         run: npm run make
         env:
-          # Передаємо змінні з GitHub Secrets у процес збірки
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DB_SERVER: ${{ secrets.DB_SERVER }}
           DB_DATABASE: ${{ secrets.DB_DATABASE }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          # Додай інші змінні, якщо вони потрібні під час збірки
+
+      - name: List output files (Debug)
+        shell: bash
+        run: ls -R out/make/
 
       - name: Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          # GitHub автоматично знайде файли в папці out/make
           files: |
             out/make/**/*.exe
             out/make/**/*.dmg
             out/make/**/*.zip
+            out/make/**/*.deb
+            out/make/**/*.rpm
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
