@@ -1,10 +1,7 @@
 import bcrypt from "bcryptjs";
 import sql from "mssql";
-import { connectDB } from "../connectDb"; 
-import { 
-  findUserByEmailQuery, 
-  insertUserQuery 
-} from "../queries/auth.queries";
+import { connectDB } from "../connectDb";
+import { findUserByEmailQuery } from "../queries/auth.queries";
 
 export const UserRepository = {
   async findByEmail(email: string) {
@@ -17,7 +14,7 @@ export const UserRepository = {
   },
 
   async register(data: any) {
-    const { email, password, fullName } = data;
+    const { email, password, fullName, role } = data;
 
     if (!email || !password || !fullName) {
       return { success: false, message: "Всі поля обов'язкові" };
@@ -30,10 +27,11 @@ export const UserRepository = {
       const pool = await connectDB();
       const result = await pool
         .request()
-        .input("email", sql.NVarChar, email)
-        .input("pass", sql.NVarChar, hashedPassword)
-        .input("name", sql.NVarChar, fullName)
-        .query(insertUserQuery);
+        .input("FullName", sql.NVarChar, fullName)
+        .input("Email", sql.NVarChar, email)
+        .input("PassHash", sql.NVarChar, hashedPassword)
+        .input("Role", sql.NVarChar, role || "User")
+        .execute("sp_RegisterUser");
 
       const newUser = result.recordset[0];
 
@@ -45,11 +43,12 @@ export const UserRepository = {
           role: newUser.Role,
         },
       };
-    } catch (err) {
+    } catch (err: any) {
       console.error("SQL Register Error:", err);
       return {
         success: false,
-        message: "Цей Email вже зайнятий або помилка бази",
+        message:
+          err.number === 2627 ? "Цей Email вже зайнятий" : "Помилка бази даних",
       };
     }
   },

@@ -6,254 +6,394 @@ const Dashboard = () => {
   const [data, setData] = useState<any[]>([]);
   const [statsData, setStatsData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Стан для кнопок
   const [activeTab, setActiveTab] = useState('home');
-  const [reportType, setReportType] = useState('sales'); // Стан для типу звіту
+  const [reportType, setReportType] = useState('sales');
   const [search, setSearch] = useState('');
+  
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [formData, setFormData] = useState<any>({});
+  const [categories, setCategories] = useState<any[]>([]);
+  
   const navigate = useNavigate();
 
-  // Додали reportType в залежності, щоб дані оновлювались при перемиканні
   useEffect(() => {
     setSearch(''); 
     refreshData();
+    if (activeTab === 'books' || showAddModal) loadCategories();
   }, [activeTab, reportType]);
+
+  const loadCategories = async () => {
+    const res = await window.api.invoke("db:get-categories");
+    if (res) setCategories(res);
+  };
 
   const refreshData = async () => {
     setIsLoading(true);
-    setData([]); 
-    setStatsData(null);
-    
     const isAuth = await window.api.checkAuthStatus();
     if (!isAuth) { navigate('/login'); return; }
 
     try {
       let result;
-      
       if (activeTab === 'home') {
         const [booksRes, ordersRaw, usersRaw] = await Promise.all([
           window.api.invoke("db:get-books"),
           window.api.invoke("db:get-orders"),
           window.api.invoke("db:get-users")
         ]);
-
         const books = booksRes?.data || [];
-        const orders = ordersRaw || [];
-        const users = usersRaw || [];
-
         setStatsData({
-          totalRevenue: orders.filter((o: any) => o.Status !== 'Cancelled').reduce((sum: number, o: any) => sum + (o.FinalAmount || 0), 0),
-          pendingOrders: orders.filter((o: any) => o.Status?.toLowerCase() === 'pending').length,
+          totalRevenue: ordersRaw?.reduce((sum: number, o: any) => sum + (o.FinalAmount || 0), 0) || 0,
+          pendingOrders: ordersRaw?.filter((o: any) => o.Status?.toLowerCase() === 'pending').length || 0,
+          totalUsers: usersRaw?.length || 0,
           lowStockBooks: books.filter((b: any) => b.TotalStock < 10).length,
-          totalUsers: users.length,
           topBooks: [...books].sort((a, b) => (b.TotalSold || 0) - (a.TotalSold || 0)).slice(0, 5),
-          recentOrders: orders.slice(0, 5)
+          recentOrders: ordersRaw?.slice(0, 5) || []
         });
-        
         result = { success: true, data: [] };
       } 
-      else if (activeTab === 'books') {
-        result = await window.api.invoke("db:get-books");
-      } else if (activeTab === 'orders') {
-        const rawData = await window.api.invoke("db:get-orders");
-        result = { success: true, data: rawData };
-      } else if (activeTab === 'users') {
-        const rawData = await window.api.invoke("db:get-users");
-        result = { success: true, data: rawData };
-      } else if (activeTab === 'reports') {
-        // Передаємо обраний тип звіту на бекенд
-        const rawData = await window.api.invoke("db:get-reports", reportType);
-        result = { success: true, data: rawData };
-      }
+      else if (activeTab === 'books') result = await window.api.invoke("db:get-books");
+      else if (activeTab === 'orders') result = { success: true, data: await window.api.invoke("db:get-orders") };
+      else if (activeTab === 'users') result = { success: true, data: await window.api.invoke("db:get-users") };
+      else if (activeTab === 'categories') result = { success: true, data: await window.api.invoke("db:get-categories") };
+      else if (activeTab === 'reports') result = { success: true, data: await window.api.invoke("db:get-reports", reportType) };
       
-      if (result?.success) {
-        setData(result.data || []);
+      if (result?.success) setData(result.data || []);
+    } catch (err) { console.error(err); } 
+    finally { setIsLoading(false); }
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true); // Блокуємо кнопку
+
+    let channel = "";
+    if (activeTab === 'books') channel = "db:create-book";
+    else if (activeTab === 'users') channel = "db:create-user";
+    else if (activeTab === 'categories') channel = "db:create-category";
+
+    try {
+      const res = await window.api.invoke(channel, activeTab === 'categories' ? formData.name : formData);
+      if (res?.success) {
+        setShowAddModal(false);
+        setFormData({});
+        refreshData();
+      } else {
+        alert(res?.message || "Помилка при збереженні");
       }
-    } catch (err) {
-      console.error(err);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false); // Розблоковуємо кнопку
     }
   };
 
   const handleAction = async (action: string, id: string, extra?: any) => {
     if (!window.confirm("Ви впевнені?")) return;
-    
     let res;
     if (action === 'delete-book') res = await window.api.invoke("db:delete-book", id);
     if (action === 'delete-user') res = await window.api.invoke("db:delete-user", id);
+    if (action === 'delete-category') res = await window.api.invoke("db:delete-category", id);
     if (action === 'status-order') res = await window.api.invoke("db:update-order-status", { id, status: extra });
-
     if (res?.success || res) refreshData();
   };
 
   const filteredData = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return [];
     const term = search.toLowerCase().trim();
-    if (!term) return data; 
-
-    return data.filter((item: any) => {
-      const getVal = (obj: any, key: string) => {
-        const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-        return foundKey ? String(obj[foundKey]).toLowerCase() : "";
-      };
-
-      if (activeTab === 'books') return getVal(item, 'Title').includes(term) || getVal(item, 'Author').includes(term);
-      if (activeTab === 'users') return getVal(item, 'FullName').includes(term) || getVal(item, 'Email').includes(term);
-      if (activeTab === 'orders') return getVal(item, 'OrderID').includes(term) || getVal(item, 'FullName').includes(term);
-      
-      // Пошук для звітів
-      if (activeTab === 'reports') {
-        if (reportType === 'sales') return getVal(item, 'BookTitle').includes(term) || getVal(item, 'CategoryName').includes(term);
-        if (reportType === 'customers') return getVal(item, 'FullName').includes(term) || getVal(item, 'Email').includes(term);
-      }
-      return true;
-    });
-  }, [data, search, activeTab, reportType]);
+    return term ? data.filter((item: any) => Object.values(item).some(v => String(v).toLowerCase().includes(term))) : data;
+  }, [data, search]);
 
   return (
     <div className="app-layout">
       <aside className="sidebar glass-panel">
         <div className="logo-area">📚 BookStore DB</div>
         <nav className="nav-menu">
-          <a href="#" className={activeTab === 'home' ? 'active' : ''} onClick={(e) => { e.preventDefault(); setActiveTab('home'); }}>🏠 Головна</a>
-          <a href="#" className={activeTab === 'books' ? 'active' : ''} onClick={(e) => { e.preventDefault(); setActiveTab('books'); }}>📖 Книги</a>
-          <a href="#" className={activeTab === 'orders' ? 'active' : ''} onClick={(e) => { e.preventDefault(); setActiveTab('orders'); }}>📦 Замовлення</a>
-          <a href="#" className={activeTab === 'users' ? 'active' : ''} onClick={(e) => { e.preventDefault(); setActiveTab('users'); }}>👥 Користувачі</a>
-          <a href="#" className={activeTab === 'reports' ? 'active' : ''} onClick={(e) => { e.preventDefault(); setActiveTab('reports'); }}>📊 Звіти</a>
+          <button
+            className={activeTab === "home" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("home");
+            }}
+          >
+            🏠 Головна
+          </button>
+
+          <button
+            className={activeTab === "books" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("books");
+            }}
+          >
+            📖 Книги
+          </button>
+
+          <button
+            className={activeTab === "categories" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("categories");
+            }}
+          >
+            📂 Категорії
+          </button>
+
+          <button
+            className={activeTab === "orders" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("orders");
+            }}
+          >
+            📦 Замовлення
+          </button>
+
+          <button
+            className={activeTab === "users" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("users");
+            }}
+          >
+            👥 Користувачі
+          </button>
+
+          <button
+            className={activeTab === "reports" ? "active" : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("reports");
+            }}
+          >
+            📊 Звіти
+          </button>
         </nav>
-        <button onClick={async () => { await window.api.logout(); navigate("/login"); }} className="logout-btn">Вийти</button>
+        <button
+          onClick={async () => {
+            await window.api.logout();
+            navigate("/login");
+          }}
+          className="logout-btn"
+        >
+          Вийти
+        </button>
       </aside>
 
       <main className="content">
         <header className="top-bar glass-panel">
-          {activeTab !== 'home' ? (
-            <input
-              type="text"
-              placeholder={`Пошук...`}
-              className="search-input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          {activeTab !== "home" ? (
+            <div className="search-wrapper">
+              <input
+                type="text"
+                placeholder={`Пошук...`}
+                className="search-input"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {["books", "users", "categories"].includes(activeTab) && (
+                <button
+                  className="add-btn"
+                  onClick={() => {
+                    setFormData({});
+                    setShowAddModal(true);
+                  }}
+                >
+                  + Додати
+                </button>
+              )}
+            </div>
           ) : (
             <div className="greeting">Вітаємо у панелі керування! 👋</div>
           )}
-          <button onClick={toggleTheme} className="theme-btn">🌗</button>
+          <button onClick={toggleTheme} className="theme-btn">
+            🌗
+          </button>
         </header>
 
         <div className="table-container glass-panel">
           <div className="table-header">
-            <h2>{activeTab === 'home' ? 'Огляд системи' : activeTab.toUpperCase()}</h2>
-            
-            {/* Перемикач звітів з'являється тільки у вкладці Reports */}
-            {activeTab === 'reports' && (
+            <h2>{activeTab === "home" ? "Огляд" : activeTab.toUpperCase()}</h2>
+            {activeTab === "reports" && (
               <div className="report-toggle">
-                <button 
-                  className={reportType === 'sales' ? 'active' : ''} 
-                  onClick={() => setReportType('sales')}
-                >Книги (Продажі)</button>
-                <button 
-                  className={reportType === 'customers' ? 'active' : ''} 
-                  onClick={() => setReportType('customers')}
-                >Клієнти (Топ покупців)</button>
+                <button
+                  className={reportType === "sales" ? "active" : ""}
+                  onClick={() => setReportType("sales")}
+                >
+                  Книги
+                </button>
+                <button
+                  className={reportType === "customers" ? "active" : ""}
+                  onClick={() => setReportType("customers")}
+                >
+                  Клієнти
+                </button>
               </div>
             )}
-
-            <button className={`refresh-btn ${isLoading ? 'loading' : ''}`} onClick={refreshData} disabled={isLoading}>
-              <span className="icon">🔄</span> Оновити
+            <button
+              className={`refresh-btn ${isLoading ? "loading" : ""}`}
+              onClick={refreshData}
+            >
+              🔄
             </button>
           </div>
 
-          {isLoading ? (
-            <div className="loader">Зчитування даних...</div>
-          ) : activeTab === 'home' && statsData ? (
-            <div className="dashboard-home fade-in">
-              {/* Тут блок статистики з попереднього коду (залишається без змін) */}
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="title">Дохід (Загальний)</div>
-                  <div className="value success">{statsData.totalRevenue} грн</div>
+          <div className="table-scroll">
+            {isLoading ? (
+              <div className="loader">Синхронізація з хмарою...</div>
+            ) : activeTab === "home" && statsData ? (
+              <div className="dashboard-home fade-in">
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <span>Дохід</span>
+                    <div className="val">{statsData.totalRevenue} ₴</div>
+                  </div>
+                  <div className="stat-card">
+                    <span>Pending</span>
+                    <div className="val">{statsData.pendingOrders}</div>
+                  </div>
+                  <div className="stat-card">
+                    <span>Клієнти</span>
+                    <div className="val">{statsData.totalUsers}</div>
+                  </div>
+                  <div className="stat-card">
+                    <span>Низький запас</span>
+                    <div className="val danger">{statsData.lowStockBooks}</div>
+                  </div>
                 </div>
-                <div className="stat-card">
-                  <div className="title">Очікують відправки</div>
-                  <div className="value warning">{statsData.pendingOrders} шт.</div>
-                </div>
-                <div className="stat-card">
-                  <div className="title">Клієнтів у базі</div>
-                  <div className="value highlight">{statsData.totalUsers}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="title">Закінчуються (Склад &lt; 10)</div>
-                  <div className="value danger">{statsData.lowStockBooks} книг</div>
-                </div>
-              </div>
-
-              <div className="dashboard-tables">
-                <div className="dash-box">
-                  <h3>Топ-5 продаваних книг 🏆</h3>
-                  <div className="dash-list">
-                    {statsData.topBooks.map((b: any, idx: number) => (
+                <div className="dashboard-tables">
+                  <div className="dash-box">
+                    <h3>Топ-5 книг 🏆</h3>
+                    {statsData.topBooks.map((b: any) => (
                       <div key={b.Id} className="dash-item">
-                        <span className="rank">#{idx + 1}</span>
-                        <div className="info">
-                          <b>{b.Title || b.title}</b>
-                          <span>{b.Author || b.author}</span>
-                        </div>
-                        <span className="badge-sales">{b.TotalSold || b.totalsold || 0} шт.</span>
+                        <span>{b.Title}</span>
+                        <b>{b.TotalSold} шт.</b>
                       </div>
                     ))}
                   </div>
-                </div>
-
-                <div className="dash-box">
-                  <h3>Останні замовлення 🕒</h3>
-                  <div className="dash-list">
+                  <div className="dash-box">
+                    <h3>Останні замовлення 🕒</h3>
                     {statsData.recentOrders.map((o: any) => (
                       <div key={o.OrderID} className="dash-item">
-                        <div className="info">
-                          <b>#{o.OrderID} - {o.FullName || "Гість"}</b>
-                          <span>{o.FinalAmount} грн</span>
-                        </div>
-                        <span className={`status-badge ${(o.Status || 'pending').toLowerCase()}`}>
-                          {o.Status}
+                        <span>
+                          #{o.OrderID} - {o.FullName}
                         </span>
+                        <b>{o.FinalAmount} ₴</b>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="table-scroll fade-in">
+            ) : (
               <table>
                 <thead>
-                  {activeTab === "books" && <tr><th>Книга / Автор</th><th>Ціна</th><th>Склад</th><th>Дії</th></tr>}
-                  {activeTab === "orders" && <tr><th>ID</th><th>Клієнт</th><th>Сума</th><th>Статус</th><th>Дії</th></tr>}
-                  {activeTab === "users" && <tr><th>ID</th><th>Ім'я</th><th>Email</th><th>Роль</th><th>Дії</th></tr>}
-                  {/* Заголовки для різних звітів */}
-                  {activeTab === "reports" && reportType === "sales" && <tr><th>Назва книги</th><th>Категорія</th><th>Продано (шт.)</th><th>Загальний дохід</th></tr>}
-                  {activeTab === "reports" && reportType === "customers" && <tr><th>Ім'я клієнта</th><th>Email</th><th>К-сть замовлень</th><th>Сума покупок</th></tr>}
+                  {activeTab === "books" && (
+                    <tr>
+                      <th>Назва</th>
+                      <th>Ціна</th>
+                      <th>Склад</th>
+                      <th>Дії</th>
+                    </tr>
+                  )}
+                  {activeTab === "orders" && (
+                    <tr>
+                      <th>ID</th>
+                      <th>Клієнт</th>
+                      <th>Сума</th>
+                      <th>Статус</th>
+                      <th>Дії</th>
+                    </tr>
+                  )}
+                  {activeTab === "users" && (
+                    <tr>
+                      <th>ID</th>
+                      <th>Ім'я</th>
+                      <th>Email</th>
+                      <th>Роль</th>
+                      <th>Дії</th>
+                    </tr>
+                  )}
+                  {activeTab === "categories" && (
+                    <tr>
+                      <th>ID</th>
+                      <th>Назва</th>
+                      <th>Дії</th>
+                    </tr>
+                  )}
+                  {activeTab === "reports" && reportType === "sales" && (
+                    <tr>
+                      <th>Назва</th>
+                      <th>Категорія</th>
+                      <th>Продано</th>
+                      <th>Дохід</th>
+                    </tr>
+                  )}
+                  {activeTab === "reports" && reportType === "customers" && (
+                    <tr>
+                      <th>Клієнт</th>
+                      <th>Email</th>
+                      <th>Замовлень</th>
+                      <th>Витрачено</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
-                  {filteredData.length > 0 ? filteredData.map((item: any) => (
-                    <tr key={item.Id || item.OrderID || item.UserID || item.BookTitle || item.FullName || Math.random()}>
+                  {filteredData.map((item: any) => (
+                    <tr
+                      key={
+                        item.Id ||
+                        item.OrderID ||
+                        item.UserID ||
+                        item.id ||
+                        Math.random()
+                      }
+                    >
                       {activeTab === "books" && (
                         <>
-                          <td><b>{item.Title || item.title}</b><br/><small>{item.Author || item.author}</small></td>
-                          <td>{item.Price || item.price} грн</td>
-                          <td className={item.TotalStock > 0 ? "text-success" : "text-danger"}>{item.TotalStock ?? 0} шт</td>
-                          <td><button onClick={() => handleAction("delete-book", item.Id || item.id)} className="btn-icon">🗑️</button></td>
+                          <td>
+                            <b>{item.Title}</b>
+                            <br />
+                            <small>{item.Author}</small>
+                          </td>
+                          <td>{item.Price} ₴</td>
+                          <td>{item.TotalStock} шт</td>
+                          <td>
+                            <button
+                              onClick={() =>
+                                handleAction("delete-book", item.Id)
+                              }
+                              className="btn-icon"
+                            >
+                              🗑️
+                            </button>
+                          </td>
                         </>
                       )}
                       {activeTab === "orders" && (
                         <>
                           <td>#{item.OrderID}</td>
-                          <td>{item.FullName || "Гість"}</td>
-                          <td>{item.FinalAmount} грн</td>
-                          <td><span className={`status-badge ${(item.Status || "pending").toLowerCase()}`}>{item.Status}</span></td>
+                          <td>{item.FullName}</td>
+                          <td>{item.FinalAmount} ₴</td>
                           <td>
-                            <select value={item.Status} onChange={(e) => handleAction("status-order", item.OrderID, e.target.value)} className="status-select">
-                              <option value="Pending">Очікує</option>
-                              <option value="Shipped">Відправлено</option>
-                              <option value="Delivered">Доставлено</option>
+                            <span
+                              className={`status-badge ${item.Status?.toLowerCase()}`}
+                            >
+                              {item.Status}
+                            </span>
+                          </td>
+                          <td>
+                            <select
+                              value={item.Status}
+                              onChange={(e) =>
+                                handleAction(
+                                  "status-order",
+                                  item.OrderID,
+                                  e.target.value,
+                                )
+                              }
+                              className="status-select"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="Shipped">Shipped</option>
+                              <option value="Delivered">Delivered</option>
                             </select>
                           </td>
                         </>
@@ -261,39 +401,186 @@ const Dashboard = () => {
                       {activeTab === "users" && (
                         <>
                           <td>{item.UserID}</td>
-                          <td><b>{item.FullName}</b></td>
+                          <td>
+                            <b>{item.FullName}</b>
+                          </td>
                           <td>{item.Email}</td>
-                          <td><span className="role-badge">{item.Role}</span></td>
-                          <td><button onClick={() => handleAction("delete-user", item.UserID)} className="btn-icon">🗑️</button></td>
+                          <td>
+                            <span className="role-badge">{item.Role}</span>
+                          </td>
+                          <td>
+                            <button
+                              onClick={() =>
+                                handleAction("delete-user", item.UserID)
+                              }
+                              className="btn-icon"
+                            >
+                              🗑️
+                            </button>
+                          </td>
                         </>
                       )}
-                      {/* Тіло таблиці для різних звітів */}
+                      {activeTab === "categories" && (
+                        <>
+                          <td>{item.id}</td>
+                          <td>
+                            <b>{item.name}</b>
+                          </td>
+                          <td>
+                            <button
+                              onClick={() =>
+                                handleAction("delete-category", item.id)
+                              }
+                              className="btn-icon"
+                            >
+                              🗑️
+                            </button>
+                          </td>
+                        </>
+                      )}
                       {activeTab === "reports" && reportType === "sales" && (
                         <>
-                          <td><b>{item.BookTitle}</b></td>
+                          <td>{item.BookTitle}</td>
                           <td>{item.CategoryName}</td>
-                          <td style={{ color: "#3b82f6", fontWeight: "bold" }}>{item.CopiesSold}</td>
-                          <td className="text-success bold">{item.GeneratedRevenue} грн</td>
+                          <td>{item.CopiesSold} шт</td>
+                          <td className="text-success">
+                            {item.GeneratedRevenue} ₴
+                          </td>
                         </>
                       )}
-                      {activeTab === "reports" && reportType === "customers" && (
-                        <>
-                          <td><b>{item.FullName}</b></td>
-                          <td>{item.Email}</td>
-                          <td style={{ color: "#3b82f6", fontWeight: "bold" }}>{item.TotalOrders}</td>
-                          <td className="text-success bold">{item.TotalSpent} грн</td>
-                        </>
-                      )}
+                      {activeTab === "reports" &&
+                        reportType === "customers" && (
+                          <>
+                            <td>{item.FullName}</td>
+                            <td>{item.Email}</td>
+                            <td>{item.TotalOrders}</td>
+                            <td className="text-success">
+                              {item.TotalSpent} ₴
+                            </td>
+                          </>
+                        )}
                     </tr>
-                  )) : (
-                    <tr><td colSpan={5} className="empty-state">Даних не знайдено</td></tr>
-                  )}
+                  ))}
                 </tbody>
               </table>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </main>
+
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-panel fade-in">
+            <h3>
+              {activeTab === "categories"
+                ? "📂 Нова категорія"
+                : activeTab === "books"
+                  ? "📖 Додати книгу"
+                  : "👥 Новий користувач"}
+            </h3>
+            <form onSubmit={handleCreate}>
+              {activeTab === "categories" && (
+                <input
+                  required
+                  placeholder="Назва категорії"
+                  onChange={(e) => setFormData({ name: e.target.value })}
+                />
+              )}
+              {activeTab === "books" && (
+                <>
+                  <input
+                    required
+                    placeholder="Назва"
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                  />
+                  <input
+                    required
+                    placeholder="Автор"
+                    onChange={(e) =>
+                      setFormData({ ...formData, author: e.target.value })
+                    }
+                  />
+                  <select
+                    required
+                    onChange={(e) =>
+                      setFormData({ ...formData, categoryId: e.target.value })
+                    }
+                  >
+                    <option value="">Оберіть категорію</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    required
+                    type="number"
+                    placeholder="Ціна"
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
+                  />
+                  <input
+                    required
+                    type="number"
+                    placeholder="Запас на складі"
+                    onChange={(e) =>
+                      setFormData({ ...formData, stock: e.target.value })
+                    }
+                  />
+                </>
+              )}
+              {activeTab === "users" && (
+                <>
+                  <input
+                    required
+                    placeholder="Повне ім'я"
+                    onChange={(e) =>
+                      setFormData({ ...formData, fullName: e.target.value })
+                    }
+                  />
+                  <input
+                    required
+                    type="email"
+                    placeholder="Email"
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                  />
+                  <input
+                    required
+                    type="password"
+                    placeholder="Пароль"
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                  />
+                </>
+              )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => setShowAddModal(false)}
+                  disabled={isSubmitting}
+                >
+                  Скасувати
+                </button>
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Збереження..." : "Створити"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

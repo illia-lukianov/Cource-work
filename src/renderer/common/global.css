@@ -24,7 +24,33 @@
     --success-bg: rgba(16, 185, 129, 0.1);
     --success-text: #10b981;
 }
-
+/* Світла тема (Оновлена для кращого контрасту) */
+[data-theme="light"] {
+    /* Робимо фон більш насиченим, щоб білі картки було видно */
+    --bg-gradient: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    --bg-main: radial-gradient(circle at top right, #e2e8f0, #cbd5e1);
+    
+    /* Картки тепер мають легкий "молочний" відтінок замість чисто білого */
+    --card-bg: rgba(255, 255, 255, 0.45);
+    --glass-bg: rgba(255, 255, 255, 0.45);
+    
+    /* Робимо межі чіткішими */
+    --card-border: rgba(0, 0, 0, 0.08);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    
+    /* Текст залишаємо глибоким синім для читабельності */
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    
+    /* Інпути робимо трохи білішими за картки, щоб їх було помітно */
+    --input-bg: rgba(255, 255, 255, 0.7);
+    
+    /* Посилюємо тінь, щоб створити об'єм */
+    --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.12);
+    
+    --primary: #4f46e5; /* Більш насичений колір для світлої теми */
+    --primary-hover: #4338ca;
+}
 /* Темна тема */
 [data-theme="dark"] {
     --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
@@ -257,15 +283,15 @@ button[type="submit"]:disabled {
     gap: 8px;
 }
 
-.nav-menu a {
+.nav-menu button {
     padding: 12px 16px;
     color: var(--text-muted);
     border-radius: 12px;
     font-weight: 500;
 }
 
-.nav-menu a:hover,
-.nav-menu a.active {
+.nav-menu button:hover,
+.nav-menu button.active {
     background: var(--primary);
     color: white;
 }
@@ -733,4 +759,309 @@ tr:hover td {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 25px;
+}
+
+/* Контейнер пошуку та кнопки додавання */
+.search-wrapper {
+  display: flex;
+  gap: 15px;
+  flex: 1;
+  max-width: 600px;
+}
+
+.add-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+}
+
+.add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Модальне вікно */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  width: 400px;
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h3 {
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.modal-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-content input, 
+.modal-content select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 10px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.modal-content input:focus {
+  border-color: #3b82f6;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancel-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.submit-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.submit-btn:hover {
+  background: #2563eb;
+}
+
+.role-badge {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Основний макет */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: #0f172a; /* Темний фон */
+  color: white;
+  overflow: hidden;
+}
+
+/* Контентна область */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  min-width: 0; /* Важливо для flex-дочірніх елементів */
+}
+
+/* Контейнер для таблиць */
+.table-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden; /* Обрізає все, що виходить за межі панелі */
+}
+
+/* Область скролу таблиці */
+.table-scroll {
+  flex: 1;
+  overflow-y: auto; /* Включаємо вертикальний скрол */
+  overflow-x: auto; /* Включаємо горизонтальний скрол для малих екранів */
+  padding: 0 16px 16px 16px;
+  min-height: 0; /* Критично для Flexbox! */
+}
+
+/* Стиль самої таблиці */
+.main-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.main-table th {
+  position: sticky; /* Заголовок стоїть на місці */
+  top: 0;
+  background: #1e293b; 
+  padding: 14px;
+  text-align: left;
+  z-index: 2;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
+}
+
+.main-table td {
+  padding: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.main-table tr:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+/* Лоадер */
+.loader-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-style: italic;
+  color: #94a3b8;
+}
+
+/* Модалка */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  backdrop-filter: blur(4px);
+}
+
+/* Змінні для підтримки теми */
+:root {
+  --bg-main: radial-gradient(circle at top right, #1e293b, #0f172a);
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --text-main: #ffffff;
+  --text-muted: #94a3b8;
+}
+
+[data-theme='light'] {
+  --bg-main: radial-gradient(circle at top right, #f8fafc, #e2e8f0);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+}
+
+.app-layout {
+  background: var(--bg-main);
+  color: var(--text-main);
+  transition: background 0.3s ease;
+}
+
+/* Кнопки в модальному вікні */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.cancel-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--glass-border);
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ef4444;
+}
+
+.submit-btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+/* Статус-бейджі */
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+.status-badge.pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.status-badge.shipped { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.status-badge.delivered { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+
+/* Виправлення ролі */
+.role-badge {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+/* --- СТАТИСТИКА ДАШБОРДУ (ГОЛОВНА) --- */
+.dashboard-home {
+    padding-top: 30px; /* Додаємо відступ від заголовка "ОГЛЯД" */
+    display: flex;
+    flex-direction: column;
+    gap: 30px; /* Збільшуємо відстань між картками та таблицями */
+}
+
+/* Також можна трохи опустити саму сітку статистики */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    /* margin-bottom приберемо, бо тепер є gap у батька */
 }

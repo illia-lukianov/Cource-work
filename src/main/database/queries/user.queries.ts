@@ -5,3 +5,7 @@ export const getAllUsersQuery = /* sql */ `
 export const deleteUserByIdQuery = /* sql */ `
   DELETE FROM Users WHERE UserID = @id
 `;
+
+export const getUserByEmailQuery = /* sql */ `
+  SELECT * FROM Users WHERE Email = @email
+`;
