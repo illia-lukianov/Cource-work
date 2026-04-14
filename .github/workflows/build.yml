@@ -25,11 +25,10 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Configure git and npm for HTTPS (fix SSH issues)
+      - name: Configure git for HTTPS (fix SSH issues)
         run: |
           git config --global url."https://github.com/".insteadOf "git://github.com/"
           git config --global url."https://".insteadOf "git://"
-          npm config set git-protocol https
           
       - name: Install dependencies
         run: npm install --verbose --fetch-timeout=60000 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
