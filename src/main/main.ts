@@ -7,7 +7,9 @@ import { CategoryRepository } from "./database/services/category.service";
 import { OrderRepository } from "./database/services/order.service";
 import { ReportService } from "./database/services/report.services";
 import { UserRepository } from "./database/services/user.service";
-if (process.platform === "win32") {
+
+// Get environment variables
+const { MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME } = process.env;
   try {
     if (require("electron-squirrel-startup")) {
       app.quit();
@@ -15,7 +17,6 @@ if (process.platform === "win32") {
   } catch (e) {
     console.error("Squirrel startup error:", e);
   }
-}
 
 const SESSION_FILE = path.join(app.getPath("userData"), "session.json");
 

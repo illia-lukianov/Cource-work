@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { toggleTheme } from "../functions/theme";
+import { Link, useNavigate } from "react-router-dom";
+import { toggleTheme } from "../../functions/theme";
+import styles from "./Login.module.css";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -37,16 +38,16 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-wrapper">
-      <button onClick={toggleTheme} className="theme-btn">
+    <div className={styles.loginContainer}>
+      <button onClick={toggleTheme} className={styles.themeToggle}>
         🌗
       </button>
-      <div className="glass-card">
-        <h1>📚 BookStore</h1>
+      <div className={styles.loginBox}>
+        <h1 className={styles.loginTitle}>📚 BookStore</h1>
         <p>Увійдіть у свій акаунт</p>
 
-        <form onSubmit={handleLogin}>
-          <div className="field">
+        <form className={styles.loginForm} onSubmit={handleLogin}>
+          <div className={styles.formGroup}>
             <label>Email</label>
             <input
               type="email"
@@ -55,7 +56,7 @@ const Login = () => {
               required
             />
           </div>
-          <div className="field">
+          <div className={styles.formGroup}>
             <label>Пароль</label>
             <input
               type="password"
@@ -64,16 +65,20 @@ const Login = () => {
               required
             />
           </div>
-          <button type="submit" disabled={isLoading}>
+          <button
+            type="submit"
+            className={styles.submitBtn}
+            disabled={isLoading}
+          >
             {isLoading ? "Завантаження..." : "Увійти"}
           </button>
         </form>
 
-        <div className="auth-footer">
+        <div className={styles.authFooter}>
           <span>Ще не маєте акаунта? </span>
           <Link to="/register">Зареєструватися</Link>
         </div>
-        {error && <div className="error-msg">{error}</div>}
+        {error && <div className={styles.errorMessage}>{error}</div>}
       </div>
     </div>
   );

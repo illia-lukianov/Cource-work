@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { initTheme } from './functions/theme';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import { useEffect } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { initTheme } from "./functions/theme";
+import Dashboard from "./pages/Dashboard/Dashboard";
+import Login from "./pages/Login/Login";
+import Register from "./pages/Register/Register";
 
 const App = () => {
   useEffect(() => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toggleTheme } from "../functions/theme";
+import { toggleTheme } from "../../functions/theme";
+import styles from "./Dashboard.module.css";
 
 const Dashboard = () => {
   const [data, setData] = useState<any[]>([]);
@@ -81,15 +82,20 @@ const Dashboard = () => {
           success: true,
           data: await window.api.invoke("db:get-categories"),
         };
-      else if (activeTab === "reports")
+      else if (activeTab === "reports") {
+        const reportData = await window.api.invoke(
+          "db:get-reports",
+          reportType,
+        );
         result = {
           success: true,
-          data: await window.api.invoke("db:get-reports", reportType),
+          data: reportData,
         };
+      }
 
       if (result?.success) setData(result.data || []);
     } catch (err) {
-      console.error(err);
+      console.error("Помилка завантаження даних:", err);
     } finally {
       setIsLoading(false);
     }
@@ -131,20 +137,26 @@ const Dashboard = () => {
     if (activeTab === "books") {
       channel = "db:update-book";
       payload = {
-        id: editingItem.Id,
-        title: formData.title || editingItem.Title,
-        author: formData.author || editingItem.Author,
-        price: parseFloat(formData.price || editingItem.Price),
-        categoryId: formData.categoryId || editingItem.CategoryID,
-        stock: parseInt(formData.stock || editingItem.TotalStock),
+        id: Number(editingItem.Id),
+        title: (formData.title || editingItem.Title).trim(),
+        author: (formData.author || editingItem.Author).trim(),
+        price: Number(formData.price || editingItem.Price),
+        categoryId: Number(formData.categoryId || editingItem.CategoryID),
+        stock: Number(formData.stock || editingItem.TotalStock),
       };
     } else if (activeTab === "users") {
       channel = "db:update-user";
       payload = {
-        id: editingItem.UserID,
-        fullName: formData.fullName || editingItem.FullName,
-        email: formData.email || editingItem.Email,
+        id: Number(editingItem.UserID),
+        fullName: (formData.fullName || editingItem.FullName).trim(),
+        email: (formData.email || editingItem.Email).trim(),
         role: formData.role || editingItem.Role,
+      };
+    } else if (activeTab === "orders") {
+      channel = "db:update-order-status";
+      payload = {
+        id: Number(editingItem.OrderID),
+        status: formData.status || editingItem.Status,
       };
     }
 
@@ -158,6 +170,9 @@ const Dashboard = () => {
       } else {
         alert(res?.message || "Помилка при оновленні");
       }
+    } catch (err: any) {
+      console.error("Помилка при оновленні:", err);
+      alert("Помилка при оновленні: " + (err?.message || "Невідома помилка"));
     } finally {
       setIsSubmitting(false);
     }
@@ -178,6 +193,10 @@ const Dashboard = () => {
         fullName: item.FullName,
         email: item.Email,
         role: item.Role,
+      });
+    } else if (activeTab === "orders") {
+      setFormData({
+        status: item.Status,
       });
     }
     setShowEditModal(true);
@@ -215,12 +234,12 @@ const Dashboard = () => {
   }, [data, search]);
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar glass-panel">
-        <div className="logo-area">📚 BookStore DB</div>
-        <nav className="nav-menu">
+    <div className={styles.appLayout}>
+      <aside className={`${styles.sidebar} glass-panel`}>
+        <div className={styles.logoArea}>📚 BookStore DB</div>
+        <nav className={styles.navMenu}>
           <button
-            className={activeTab === "home" ? "active" : ""}
+            className={activeTab === "home" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
               setActiveTab("home");
@@ -230,7 +249,7 @@ const Dashboard = () => {
           </button>
 
           <button
-            className={activeTab === "books" ? "active" : ""}
+            className={activeTab === "books" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
               setActiveTab("books");
@@ -240,7 +259,7 @@ const Dashboard = () => {
           </button>
 
           <button
-            className={activeTab === "categories" ? "active" : ""}
+            className={activeTab === "categories" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
               setActiveTab("categories");
@@ -250,7 +269,7 @@ const Dashboard = () => {
           </button>
 
           <button
-            className={activeTab === "orders" ? "active" : ""}
+            className={activeTab === "orders" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
               setActiveTab("orders");
@@ -260,7 +279,7 @@ const Dashboard = () => {
           </button>
 
           <button
-            className={activeTab === "users" ? "active" : ""}
+            className={activeTab === "users" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
               setActiveTab("users");
@@ -270,7 +289,7 @@ const Dashboard = () => {
           </button>
 
           <button
-            className={activeTab === "reports" ? "active" : ""}
+            className={activeTab === "reports" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
               setActiveTab("reports");
@@ -284,26 +303,26 @@ const Dashboard = () => {
             await window.api.logout();
             navigate("/login");
           }}
-          className="logout-btn"
+          className={styles.logoutBtn}
         >
           Вийти
         </button>
       </aside>
 
-      <main className="content">
-        <header className="top-bar glass-panel">
+      <main className={styles.content}>
+        <header className={`${styles.topBar} glass-panel`}>
           {activeTab !== "home" ? (
-            <div className="search-wrapper">
+            <div className={styles.searchWrapper}>
               <input
                 type="text"
                 placeholder={`Пошук...`}
-                className="search-input"
+                className={styles.searchInput}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
               {["books", "users", "categories"].includes(activeTab) && (
                 <button
-                  className="add-btn"
+                  className={styles.addBtn}
                   onClick={() => {
                     setFormData({});
                     setShowAddModal(true);
@@ -314,77 +333,89 @@ const Dashboard = () => {
               )}
             </div>
           ) : (
-            <div className="greeting">Вітаємо у панелі керування! 👋</div>
+            <div className={styles.greeting}>
+              Вітаємо у панелі керування! 👋
+            </div>
           )}
-          <button onClick={toggleTheme} className="theme-btn">
+          <button onClick={toggleTheme} className={styles.themeBtn}>
             🌗
           </button>
         </header>
 
-        <div className="table-container glass-panel">
-          <div className="table-header">
+        <div className={`${styles.tableContainer} glass-panel`}>
+          <div className={styles.tableHeader}>
             <h2>{activeTab === "home" ? "Огляд" : activeTab.toUpperCase()}</h2>
             {activeTab === "reports" && (
-              <div className="report-toggle">
+              <div className={styles.reportToggle}>
                 <button
-                  className={reportType === "sales" ? "active" : ""}
+                  className={reportType === "sales" ? styles.active : ""}
                   onClick={() => setReportType("sales")}
                 >
                   Книги
                 </button>
                 <button
-                  className={reportType === "customers" ? "active" : ""}
+                  className={reportType === "customers" ? styles.active : ""}
                   onClick={() => setReportType("customers")}
                 >
                   Клієнти
                 </button>
+                <button
+                  className={
+                    reportType === "PriceAnalysis" ? styles.active : ""
+                  }
+                  onClick={() => setReportType("PriceAnalysis")}
+                >
+                  Зміна цін
+                </button>
               </div>
             )}
             <button
-              className={`refresh-btn ${isLoading ? "loading" : ""}`}
+              className={`${styles.refreshBtn} ${isLoading ? styles.loading : ""}`}
               onClick={refreshData}
             >
               🔄
             </button>
           </div>
 
-          <div className="table-scroll">
+          <div className={styles.tableScroll}>
             {isLoading ? (
-              <div className="loader">Синхронізація з хмарою...</div>
+              <div className={styles.loader}>Синхронізація з хмарою...</div>
             ) : activeTab === "home" && statsData ? (
-              <div className="dashboard-home fade-in">
-                <div className="stats-grid">
-                  <div className="stat-card">
+              <div className={`${styles.dashboardHome} fade-in`}>
+                <div className={styles.statsGrid}>
+                  <div className={styles.statCard}>
                     <span>Дохід</span>
-                    <div className="val">{statsData.totalRevenue} ₴</div>
+                    <div className={styles.val}>{statsData.totalRevenue} ₴</div>
                   </div>
-                  <div className="stat-card">
+                  <div className={styles.statCard}>
                     <span>Pending</span>
-                    <div className="val">{statsData.pendingOrders}</div>
+                    <div className={styles.val}>{statsData.pendingOrders}</div>
                   </div>
-                  <div className="stat-card">
+                  <div className={styles.statCard}>
                     <span>Клієнти</span>
-                    <div className="val">{statsData.totalUsers}</div>
+                    <div className={styles.val}>{statsData.totalUsers}</div>
                   </div>
-                  <div className="stat-card">
+                  <div className={styles.statCard}>
                     <span>Низький запас</span>
-                    <div className="val danger">{statsData.lowStockBooks}</div>
+                    <div className={`${styles.val} ${styles.danger}`}>
+                      {statsData.lowStockBooks}
+                    </div>
                   </div>
                 </div>
-                <div className="dashboard-tables">
-                  <div className="dash-box">
+                <div className={styles.dashboardTables}>
+                  <div className={styles.dashBox}>
                     <h3>Топ-5 книг 🏆</h3>
                     {statsData.topBooks.map((b: any) => (
-                      <div key={b.Id} className="dash-item">
+                      <div key={b.Id} className={styles.dashItem}>
                         <span>{b.Title}</span>
                         <b>{b.TotalSold} шт.</b>
                       </div>
                     ))}
                   </div>
-                  <div className="dash-box">
+                  <div className={styles.dashBox}>
                     <h3>Останні замовлення 🕒</h3>
                     {statsData.recentOrders.map((o: any) => (
-                      <div key={o.OrderID} className="dash-item">
+                      <div key={o.OrderID} className={styles.dashItem}>
                         <span>
                           #{o.OrderID} - {o.FullName}
                         </span>
@@ -446,6 +477,15 @@ const Dashboard = () => {
                       <th>Витрачено</th>
                     </tr>
                   )}
+                  {activeTab === "reports" &&
+                    reportType === "PriceAnalysis" && (
+                      <tr>
+                        <th>Назва книги</th>
+                        <th>Стара ціна</th>
+                        <th>Нова ціна</th>
+                        <th>Дата зміни</th>
+                      </tr>
+                    )}
                 </thead>
                 <tbody>
                   {filteredData.map((item: any) => (
@@ -470,7 +510,7 @@ const Dashboard = () => {
                           <td>
                             <button
                               onClick={() => openEditModal(item)}
-                              className="btn-icon"
+                              className={styles.btnIcon}
                               title="Редагувати"
                             >
                               ✏️
@@ -479,7 +519,7 @@ const Dashboard = () => {
                               onClick={() =>
                                 handleAction("delete-book", item.Id)
                               }
-                              className="btn-icon"
+                              className={styles.btnIcon}
                               title="Видалити"
                             >
                               🗑️
@@ -494,32 +534,24 @@ const Dashboard = () => {
                           <td>{item.FinalAmount} ₴</td>
                           <td>
                             <span
-                              className={`status-badge ${item.Status?.toLowerCase()}`}
+                              className={`${styles.statusBadge} ${item.Status?.toLowerCase()}`}
                             >
                               {item.Status}
                             </span>
                           </td>
                           <td>
-                            <select
-                              value={item.Status}
-                              onChange={(e) =>
-                                handleAction(
-                                  "status-order",
-                                  item.OrderID,
-                                  e.target.value,
-                                )
-                              }
-                              className="status-select"
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className={styles.btnIcon}
+                              title="Редагувати"
                             >
-                              <option value="Pending">Pending</option>
-                              <option value="Shipped">Shipped</option>
-                              <option value="Delivered">Delivered</option>
-                            </select>
+                              ✏️
+                            </button>
                             <button
                               onClick={() =>
                                 handleAction("delete-order", item.OrderID)
                               }
-                              className="btn-icon"
+                              className={styles.btnIcon}
                               title="Видалити"
                             >
                               🗑️
@@ -535,12 +567,14 @@ const Dashboard = () => {
                           </td>
                           <td>{item.Email}</td>
                           <td>
-                            <span className="role-badge">{item.Role}</span>
+                            <span className={styles.roleBadge}>
+                              {item.Role}
+                            </span>
                           </td>
                           <td>
                             <button
                               onClick={() => openEditModal(item)}
-                              className="btn-icon"
+                              className={styles.btnIcon}
                               title="Редагувати"
                             >
                               ✏️
@@ -549,7 +583,7 @@ const Dashboard = () => {
                               onClick={() =>
                                 handleAction("delete-user", item.UserID)
                               }
-                              className="btn-icon"
+                              className={styles.btnIcon}
                               title="Видалити"
                             >
                               🗑️
@@ -568,7 +602,7 @@ const Dashboard = () => {
                               onClick={() =>
                                 handleAction("delete-category", item.id)
                               }
-                              className="btn-icon"
+                              className={styles.btnIcon}
                             >
                               🗑️
                             </button>
@@ -596,6 +630,28 @@ const Dashboard = () => {
                             </td>
                           </>
                         )}
+                      {activeTab === "reports" &&
+                        reportType === "PriceAnalysis" && (
+                          <>
+                            <td>{item.BookTitle}</td>
+                            <td>{item.OldPrice} ₴</td>
+                            <td>{item.NewPrice} ₴</td>
+                            <td>
+                              {item.ChangeDate
+                                ? new Date(item.ChangeDate).toLocaleDateString(
+                                    "uk-UA",
+                                    {
+                                      year: "numeric",
+                                      month: "2-digit",
+                                      day: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )
+                                : "Невідомо"}
+                            </td>
+                          </>
+                        )}
                     </tr>
                   ))}
                 </tbody>
@@ -606,8 +662,8 @@ const Dashboard = () => {
       </main>
 
       {showAddModal && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-panel fade-in">
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modalContent} glass-panel fade-in`}>
             <h3>
               {activeTab === "categories"
                 ? "📂 Нова категорія"
@@ -697,10 +753,10 @@ const Dashboard = () => {
                   />
                 </>
               )}
-              <div className="modal-actions">
+              <div className={styles.modalActions}>
                 <button
                   type="button"
-                  className="cancel-btn"
+                  className={styles.cancelBtn}
                   onClick={() => setShowAddModal(false)}
                   disabled={isSubmitting}
                 >
@@ -708,7 +764,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   type="submit"
-                  className="submit-btn"
+                  className={styles.submitBtn}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Збереження..." : "Створити"}
@@ -720,12 +776,14 @@ const Dashboard = () => {
       )}
 
       {showEditModal && (
-        <div className="modal-overlay">
-          <div className="modal-content glass-panel fade-in">
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modalContent} glass-panel fade-in`}>
             <h3>
               {activeTab === "books"
                 ? "📖 Редагувати книгу"
-                : "👥 Редагувати користувача"}
+                : activeTab === "orders"
+                  ? "📦 Редагувати замовлення"
+                  : "👥 Редагувати користувача"}
             </h3>
             <form onSubmit={handleUpdate}>
               {activeTab === "books" && (
@@ -811,10 +869,26 @@ const Dashboard = () => {
                   </select>
                 </>
               )}
-              <div className="modal-actions">
+              {activeTab === "orders" && (
+                <>
+                  <label>Статус замовлення</label>
+                  <select
+                    required
+                    defaultValue={editingItem?.Status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, status: e.target.value })
+                    }
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                  </select>
+                </>
+              )}
+              <div className={styles.modalActions}>
                 <button
                   type="button"
-                  className="cancel-btn"
+                  className={styles.cancelBtn}
                   onClick={() => {
                     setShowEditModal(false);
                     setEditingItem(null);
@@ -826,7 +900,7 @@ const Dashboard = () => {
                 </button>
                 <button
                   type="submit"
-                  className="submit-btn"
+                  className={styles.submitBtn}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Збереження..." : "Оновити"}

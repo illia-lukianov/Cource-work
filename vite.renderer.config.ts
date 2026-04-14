@@ -10,6 +10,11 @@ export default defineConfig({
   base: "./",
   root: rendererRoot,
   plugins: [react()],
+  css: {
+    modules: {
+      localsConvention: "camelCase",
+    },
+  },
   build: {
     outDir: rendererOutDir,
     emptyOutDir: true,

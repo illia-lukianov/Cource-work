@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { toggleTheme } from "../functions/theme";
+import { Link, useNavigate } from "react-router-dom";
+import { toggleTheme } from "../../functions/theme";
+import styles from "./Register.module.css";
 
 const Register = () => {
   const [fullName, setFullName] = useState("");
@@ -41,16 +42,20 @@ const Register = () => {
   };
 
   return (
-    <div className="auth-wrapper">
-      <button onClick={toggleTheme} className="theme-btn" title="Змінити тему">
+    <div className={styles.registerContainer}>
+      <button
+        onClick={toggleTheme}
+        className={styles.themeToggle}
+        title="Змінити тему"
+      >
         🌗
       </button>
-      <div className="glass-card">
-        <h1>Створити акаунт</h1>
+      <div className={styles.registerBox}>
+        <h1 className={styles.registerTitle}>Створити акаунт</h1>
         <p>Приєднуйтесь до нашої книжкової спільноти</p>
-        
-        <form onSubmit={handleRegister}>
-          <div className="field">
+
+        <form className={styles.registerForm} onSubmit={handleRegister}>
+          <div className={styles.formGroup}>
             <label>Повне ім'я</label>
             <input
               type="text"
@@ -61,7 +66,7 @@ const Register = () => {
               disabled={isLoading}
             />
           </div>
-          <div className="field">
+          <div className={styles.formGroup}>
             <label>Email</label>
             <input
               type="email"
@@ -72,7 +77,7 @@ const Register = () => {
               disabled={isLoading}
             />
           </div>
-          <div className="field">
+          <div className={styles.formGroup}>
             <label>Пароль</label>
             <input
               type="password"
@@ -83,17 +88,21 @@ const Register = () => {
               disabled={isLoading}
             />
           </div>
-          <button type="submit" disabled={isLoading}>
+          <button
+            type="submit"
+            className={styles.submitBtn}
+            disabled={isLoading}
+          >
             {isLoading ? "Реєстрація..." : "Зареєструватися"}
           </button>
         </form>
-        
-        <div className="auth-footer">
+
+        <div className={styles.loginLink}>
           <span>Вже є акаунт? </span>
           <Link to="/login">Увійти</Link>
         </div>
-        
-        {error && <div className="error-msg">{error}</div>}
+
+        {error && <div className={styles.errorMessage}>{error}</div>}
       </div>
     </div>
   );

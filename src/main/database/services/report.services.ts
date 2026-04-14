@@ -2,6 +2,7 @@ import { connectDB } from "../connectDb";
 import {
   getCustomerReportQuery,
   getSalesReportQuery,
+  getPriceAnalysisQuery,
 } from "../queries/report.queries";
 
 export const ReportService = {
@@ -15,6 +16,8 @@ export const ReportService = {
         query = getSalesReportQuery;
       } else if (type === "customers") {
         query = getCustomerReportQuery;
+      } else if (type === "PriceAnalysis") {
+        query = getPriceAnalysisQuery;
       } else {
         return [];
       }

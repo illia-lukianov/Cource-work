@@ -1,0 +1,711 @@
+/* Dashboard Component Styles */
+
+/* =========== APP LAYOUT =========== */
+.appLayout {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    background: var(--bg-gradient);
+    overflow: hidden;
+}
+
+/* =========== SIDEBAR =========== */
+.sidebar {
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--card-border);
+    overflow-y: auto;
+}
+
+.logoArea {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 30px;
+    color: var(--text-main);
+    text-align: center;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+}
+
+.navMenu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+}
+
+.navMenu button {
+    background: transparent;
+    border: 2px solid transparent;
+    color: var(--text-muted);
+    padding: 12px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
+}
+
+.navMenu button:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+}
+
+.navMenu button.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.logoutBtn {
+    background: rgba(239, 68, 68, 0.1);
+    border: 2px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    padding: 12px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logoutBtn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+}
+
+/* =========== MAIN CONTENT =========== */
+.content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 20px;
+    gap: 15px;
+}
+
+/* =========== TOP BAR =========== */
+.topBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    backdrop-filter: var(--blur);
+}
+
+.searchWrapper {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    align-items: center;
+}
+
+.searchInput {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    padding: 10px 16px;
+    border-radius: 10px;
+    color: var(--text-main);
+    font-size: 14px;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.searchInput::placeholder {
+    color: var(--text-muted);
+}
+
+.searchInput:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.addBtn {
+    background: var(--primary);
+    border: none;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.addBtn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.greeting {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.themeBtn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.3s;
+}
+
+.themeBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+/* =========== TABLE CONTAINER =========== */
+.tableContainer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    backdrop-filter: var(--blur);
+    overflow: hidden;
+}
+
+.tableHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.tableHeader h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 18px;
+}
+
+.reportToggle {
+    display: flex;
+    gap: 8px;
+}
+
+.reportToggle button {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.reportToggle button.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.refreshBtn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+}
+
+.refreshBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: rotate(180deg);
+}
+
+.refreshBtn.loading {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* =========== TABLE & SCROLL =========== */
+.tableScroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 0 16px 16px 16px;
+    min-height: 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+thead {
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    z-index: 10;
+}
+
+th {
+    text-align: left;
+    padding: 12px 16px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--card-border);
+    font-weight: 600;
+}
+
+td {
+    padding: 16px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--card-border);
+    vertical-align: middle;
+    word-break: break-word;
+}
+
+/* Встановлюємо ширини колонок через nth-child */
+th:nth-child(1),
+td:nth-child(1) {
+    width: 60px;
+}
+
+th:nth-child(2),
+td:nth-child(2) {
+    width: 40%;
+}
+
+th:nth-child(3),
+td:nth-child(3) {
+    width: 20%;
+}
+
+th:nth-child(4),
+td:nth-child(4) {
+    width: 15%;
+}
+
+th:nth-child(5),
+td:nth-child(5) {
+    width: 15%;
+}
+
+/* Для можливих 6 колонок (дії) */
+th:nth-child(6),
+td:nth-child(6) {
+    width: auto;
+    text-align: center;
+}
+
+/* Ensure select and button have proper sizing */
+tbody td:last-child select,
+tbody td:last-child button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: fit-content;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* =========== DASHBOARD HOME =========== */
+.dashboardHome {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px 0;
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+}
+
+.statCard {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.statCard:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-4px);
+}
+
+.statCard span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.val {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.val.danger {
+    color: #ef4444;
+}
+
+.dashboardTables {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.dashBox {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.dashBox h3 {
+    margin: 0 0 12px 0;
+    color: var(--text-main);
+    font-size: 16px;
+}
+
+.dashItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--card-border);
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.dashItem span {
+    flex: 1;
+}
+
+.dashItem b {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.dashItem:last-child {
+    border-bottom: none;
+}
+
+/* =========== LOADER =========== */
+.loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--text-muted);
+    font-size: 16px;
+}
+
+/* =========== STATUS BADGES =========== */
+.statusBadge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.statusBadge.pending {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.statusBadge.delivered {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.statusBadge.shipped {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.statusBadge.cancelled {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.roleBadge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* =========== SELECT STYLES =========== */
+.statusSelect {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    padding-right: 30px;
+    flex-shrink: 0;
+}
+
+.statusSelect:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.statusSelect:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.statusSelect option {
+    background: #1e1e2e;
+    color: #fff;
+    padding: 10px;
+}
+
+/* =========== BUTTON ICONS =========== */
+.btnIcon {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #9ca3af;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+}
+
+.btnIcon:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+    transform: scale(1.1);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
+    filter: hue-rotate(0deg);
+}
+
+.btnIcon:active {
+    transform: scale(0.9);
+    box-shadow: none;
+}
+
+/* =========== MODALS =========== */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modalContent {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    max-width: 500px;
+    width: 90%;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modalContent h3 {
+    margin: 0 0 20px 0;
+    color: var(--text-main);
+    font-size: 20px;
+}
+
+.modalContent form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modalContent label {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.modalContent input,
+.modalContent select {
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.modalContent input:focus,
+.modalContent select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.modalContent input::placeholder {
+    color: var(--text-muted);
+}
+
+.modalActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.cancelBtn,
+.submitBtn {
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.cancelBtn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-muted);
+}
+
+.cancelBtn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+}
+
+.submitBtn {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+}
+
+.submitBtn:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.cancelBtn:disabled,
+.submitBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .appLayout {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--card-border);
+        flex-direction: row;
+        align-items: center;
+        padding: 12px;
+    }
+
+    .logoArea {
+        order: 1;
+        margin-bottom: 0;
+        margin-right: 20px;
+        flex-shrink: 0;
+    }
+
+    .navMenu {
+        flex-direction: row;
+        flex: 1;
+        gap: 8px;
+    }
+
+    .navMenu button {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .logoutBtn {
+        order: 3;
+        margin-left: auto;
+        padding: 8px 12px;
+    }
+
+    .dashboardTables {
+        grid-template-columns: 1fr;
+    }
+
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
