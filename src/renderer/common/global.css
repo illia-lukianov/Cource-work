@@ -402,6 +402,7 @@ button[type="submit"]:disabled {
 table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: auto;
 }
 
 th {
@@ -418,6 +419,24 @@ td {
     padding: 16px;
     font-size: 14px;
     border-bottom: 1px solid var(--card-border);
+    white-space: nowrap;
+}
+
+/* Actions column styling */
+tbody td:last-child {
+    white-space: normal;
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 8px;
+    align-items: center;
+    width: 140px;
+}
+
+/* Ensure select and button fill their grid cells */
+tbody td:last-child select,
+tbody td:last-child button {
+    width: auto;
+    min-width: fit-content;
 }
 
 tr:last-child td {
@@ -516,6 +535,7 @@ tr:hover td {
     background-position: right 8px center;
     background-size: 16px;
     padding-right: 30px;
+    flex-shrink: 0;
 }
 
 .status-select:hover {
@@ -546,6 +566,7 @@ tr:hover td {
     font-size: 16px;
     color: #9ca3af;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
 }
 
 .btn-icon:hover {

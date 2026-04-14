@@ -1,6 +1,6 @@
-import { connectDB } from "../connectDb";
 import sql from "mssql";
-import { getAllBooksQuery, deleteBookByIdQuery } from "../queries/book.queries";
+import { connectDB } from "../connectDb";
+import { deleteBookByIdQuery, getAllBooksQuery } from "../queries/book.queries";
 
 export const BookRepository = {
   async getAllForDashboard() {
@@ -9,21 +9,28 @@ export const BookRepository = {
     return result.recordset;
   },
 
-  async createBook(data: { title: string, author: string, price: number, categoryId: number, stock: number }) {
+  async createBook(data: {
+    title: string;
+    author: string;
+    price: number;
+    categoryId: number;
+    stock: number;
+  }) {
     try {
       const pool = await connectDB();
-      
-      const result = await pool.request()
-        .input('Title', sql.NVarChar, data.title)
-        .input('Author', sql.NVarChar, data.author)
-        .input('Price', sql.Decimal(10, 2), data.price)
-        .input('CategoryID', sql.Int, data.categoryId)
-        .input('Quantity', sql.Int, data.stock || 0)
-        .execute('sp_CreateBook');
 
-      return { 
-        success: true, 
-        bookId: result.recordset[0].BookID 
+      const result = await pool
+        .request()
+        .input("Title", sql.NVarChar, data.title)
+        .input("Author", sql.NVarChar, data.author)
+        .input("Price", sql.Decimal(10, 2), data.price)
+        .input("CategoryID", sql.Int, data.categoryId)
+        .input("Quantity", sql.Int, data.stock || 0)
+        .execute("sp_CreateBook");
+
+      return {
+        success: true,
+        bookId: result.recordset[0].BookID,
       };
     } catch (err) {
       console.error("Помилка при виконанні sp_CreateBook:", err);
@@ -33,9 +40,38 @@ export const BookRepository = {
 
   async deleteBook(id: string | number) {
     const pool = await connectDB();
-    await pool.request()
-      .input('id', sql.Int, Number(id))
+    await pool
+      .request()
+      .input("id", sql.Int, Number(id))
       .query(deleteBookByIdQuery);
     return { success: true };
-  }
+  },
+
+  async updateBook(data: {
+    id: number;
+    title: string;
+    author: string;
+    price: number;
+    categoryId: number;
+    stock: number;
+  }) {
+    try {
+      const pool = await connectDB();
+
+      await pool
+        .request()
+        .input("BookID", sql.Int, data.id)
+        .input("Title", sql.NVarChar, data.title)
+        .input("Author", sql.NVarChar, data.author)
+        .input("Price", sql.Decimal(10, 2), data.price)
+        .input("CategoryID", sql.Int, data.categoryId)
+        .input("Quantity", sql.Int, data.stock || 0)
+        .execute("sp_UpdateBook");
+
+      return { success: true };
+    } catch (err) {
+      console.error("Помилка при виконанні sp_UpdateBook:", err);
+      return { success: false, message: "Не вдалося оновити книгу" };
+    }
+  },
 };

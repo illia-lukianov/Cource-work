@@ -148,6 +148,18 @@ const registerIpcHandlers = () => {
     async (_e, id) => await CategoryRepository.delete(id),
   );
   ipcMain.handle(
+    "db:update-book",
+    async (_e, data) => await BookRepository.updateBook(data),
+  );
+  ipcMain.handle(
+    "db:update-user",
+    async (_e, data) => await UserRepository.update(data),
+  );
+  ipcMain.handle(
+    "db:delete-order",
+    async (_e, id) => await OrderRepository.deleteOrder(id),
+  );
+  ipcMain.handle(
     "db:get-reports",
     async (_e, type) => await ReportService.getReport(type),
   );

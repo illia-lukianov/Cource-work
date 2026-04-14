@@ -1,26 +1,28 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toggleTheme } from '../functions/theme';
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toggleTheme } from "../functions/theme";
 
 const Dashboard = () => {
   const [data, setData] = useState<any[]>([]);
   const [statsData, setStatsData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false); 
-  const [activeTab, setActiveTab] = useState('home');
-  const [reportType, setReportType] = useState('sales');
-  const [search, setSearch] = useState('');
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("home");
+  const [reportType, setReportType] = useState("sales");
+  const [search, setSearch] = useState("");
+
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
   const [categories, setCategories] = useState<any[]>([]);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
-    setSearch(''); 
+    setSearch("");
     refreshData();
-    if (activeTab === 'books' || showAddModal) loadCategories();
+    if (activeTab === "books" || showAddModal) loadCategories();
   }, [activeTab, reportType]);
 
   const loadCategories = async () => {
@@ -31,36 +33,66 @@ const Dashboard = () => {
   const refreshData = async () => {
     setIsLoading(true);
     const isAuth = await window.api.checkAuthStatus();
-    if (!isAuth) { navigate('/login'); return; }
+    if (!isAuth) {
+      navigate("/login");
+      return;
+    }
 
     try {
       let result;
-      if (activeTab === 'home') {
+      if (activeTab === "home") {
         const [booksRes, ordersRaw, usersRaw] = await Promise.all([
           window.api.invoke("db:get-books"),
           window.api.invoke("db:get-orders"),
-          window.api.invoke("db:get-users")
+          window.api.invoke("db:get-users"),
         ]);
         const books = booksRes?.data || [];
         setStatsData({
-          totalRevenue: ordersRaw?.reduce((sum: number, o: any) => sum + (o.FinalAmount || 0), 0) || 0,
-          pendingOrders: ordersRaw?.filter((o: any) => o.Status?.toLowerCase() === 'pending').length || 0,
+          totalRevenue:
+            ordersRaw?.reduce(
+              (sum: number, o: any) => sum + (o.FinalAmount || 0),
+              0,
+            ) || 0,
+          pendingOrders:
+            ordersRaw?.filter((o: any) => o.Status?.toLowerCase() === "pending")
+              .length || 0,
           totalUsers: usersRaw?.length || 0,
           lowStockBooks: books.filter((b: any) => b.TotalStock < 10).length,
-          topBooks: [...books].sort((a, b) => (b.TotalSold || 0) - (a.TotalSold || 0)).slice(0, 5),
-          recentOrders: ordersRaw?.slice(0, 5) || []
+          topBooks: [...books]
+            .sort((a, b) => (b.TotalSold || 0) - (a.TotalSold || 0))
+            .slice(0, 5),
+          recentOrders: ordersRaw?.slice(0, 5) || [],
         });
         result = { success: true, data: [] };
-      } 
-      else if (activeTab === 'books') result = await window.api.invoke("db:get-books");
-      else if (activeTab === 'orders') result = { success: true, data: await window.api.invoke("db:get-orders") };
-      else if (activeTab === 'users') result = { success: true, data: await window.api.invoke("db:get-users") };
-      else if (activeTab === 'categories') result = { success: true, data: await window.api.invoke("db:get-categories") };
-      else if (activeTab === 'reports') result = { success: true, data: await window.api.invoke("db:get-reports", reportType) };
-      
+      } else if (activeTab === "books")
+        result = await window.api.invoke("db:get-books");
+      else if (activeTab === "orders")
+        result = {
+          success: true,
+          data: await window.api.invoke("db:get-orders"),
+        };
+      else if (activeTab === "users")
+        result = {
+          success: true,
+          data: await window.api.invoke("db:get-users"),
+        };
+      else if (activeTab === "categories")
+        result = {
+          success: true,
+          data: await window.api.invoke("db:get-categories"),
+        };
+      else if (activeTab === "reports")
+        result = {
+          success: true,
+          data: await window.api.invoke("db:get-reports", reportType),
+        };
+
       if (result?.success) setData(result.data || []);
-    } catch (err) { console.error(err); } 
-    finally { setIsLoading(false); }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -68,12 +100,15 @@ const Dashboard = () => {
     setIsSubmitting(true);
 
     let channel = "";
-    if (activeTab === 'books') channel = "db:create-book";
-    else if (activeTab === 'users') channel = "db:create-user";
-    else if (activeTab === 'categories') channel = "db:create-category";
+    if (activeTab === "books") channel = "db:create-book";
+    else if (activeTab === "users") channel = "db:create-user";
+    else if (activeTab === "categories") channel = "db:create-category";
 
     try {
-      const res = await window.api.invoke(channel, activeTab === 'categories' ? formData.name : formData);
+      const res = await window.api.invoke(
+        channel,
+        activeTab === "categories" ? formData.name : formData,
+      );
       if (res?.success) {
         setShowAddModal(false);
         setFormData({});
@@ -86,20 +121,97 @@ const Dashboard = () => {
     }
   };
 
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    let channel = "";
+    let payload: any = {};
+
+    if (activeTab === "books") {
+      channel = "db:update-book";
+      payload = {
+        id: editingItem.Id,
+        title: formData.title || editingItem.Title,
+        author: formData.author || editingItem.Author,
+        price: parseFloat(formData.price || editingItem.Price),
+        categoryId: formData.categoryId || editingItem.CategoryID,
+        stock: parseInt(formData.stock || editingItem.TotalStock),
+      };
+    } else if (activeTab === "users") {
+      channel = "db:update-user";
+      payload = {
+        id: editingItem.UserID,
+        fullName: formData.fullName || editingItem.FullName,
+        email: formData.email || editingItem.Email,
+        role: formData.role || editingItem.Role,
+      };
+    }
+
+    try {
+      const res = await window.api.invoke(channel, payload);
+      if (res?.success) {
+        setShowEditModal(false);
+        setEditingItem(null);
+        setFormData({});
+        refreshData();
+      } else {
+        alert(res?.message || "Помилка при оновленні");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditModal = (item: any) => {
+    setEditingItem(item);
+    if (activeTab === "books") {
+      setFormData({
+        title: item.Title,
+        author: item.Author,
+        price: item.Price,
+        categoryId: item.CategoryID,
+        stock: item.TotalStock,
+      });
+    } else if (activeTab === "users") {
+      setFormData({
+        fullName: item.FullName,
+        email: item.Email,
+        role: item.Role,
+      });
+    }
+    setShowEditModal(true);
+  };
+
   const handleAction = async (action: string, id: string, extra?: any) => {
     if (!window.confirm("Ви впевнені?")) return;
     let res;
-    if (action === 'delete-book') res = await window.api.invoke("db:delete-book", id);
-    if (action === 'delete-user') res = await window.api.invoke("db:delete-user", id);
-    if (action === 'delete-category') res = await window.api.invoke("db:delete-category", id);
-    if (action === 'status-order') res = await window.api.invoke("db:update-order-status", { id, status: extra });
+    if (action === "delete-book")
+      res = await window.api.invoke("db:delete-book", id);
+    if (action === "delete-user")
+      res = await window.api.invoke("db:delete-user", id);
+    if (action === "delete-category")
+      res = await window.api.invoke("db:delete-category", id);
+    if (action === "delete-order")
+      res = await window.api.invoke("db:delete-order", id);
+    if (action === "status-order")
+      res = await window.api.invoke("db:update-order-status", {
+        id,
+        status: extra,
+      });
     if (res?.success || res) refreshData();
   };
 
   const filteredData = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return [];
     const term = search.toLowerCase().trim();
-    return term ? data.filter((item: any) => Object.values(item).some(v => String(v).toLowerCase().includes(term))) : data;
+    return term
+      ? data.filter((item: any) =>
+          Object.values(item).some((v) =>
+            String(v).toLowerCase().includes(term),
+          ),
+        )
+      : data;
   }, [data, search]);
 
   return (
@@ -357,10 +469,18 @@ const Dashboard = () => {
                           <td>{item.TotalStock} шт</td>
                           <td>
                             <button
+                              onClick={() => openEditModal(item)}
+                              className="btn-icon"
+                              title="Редагувати"
+                            >
+                              ✏️
+                            </button>
+                            <button
                               onClick={() =>
                                 handleAction("delete-book", item.Id)
                               }
                               className="btn-icon"
+                              title="Видалити"
                             >
                               🗑️
                             </button>
@@ -395,6 +515,15 @@ const Dashboard = () => {
                               <option value="Shipped">Shipped</option>
                               <option value="Delivered">Delivered</option>
                             </select>
+                            <button
+                              onClick={() =>
+                                handleAction("delete-order", item.OrderID)
+                              }
+                              className="btn-icon"
+                              title="Видалити"
+                            >
+                              🗑️
+                            </button>
                           </td>
                         </>
                       )}
@@ -410,10 +539,18 @@ const Dashboard = () => {
                           </td>
                           <td>
                             <button
+                              onClick={() => openEditModal(item)}
+                              className="btn-icon"
+                              title="Редагувати"
+                            >
+                              ✏️
+                            </button>
+                            <button
                               onClick={() =>
                                 handleAction("delete-user", item.UserID)
                               }
                               className="btn-icon"
+                              title="Видалити"
                             >
                               🗑️
                             </button>
@@ -575,6 +712,124 @@ const Dashboard = () => {
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Збереження..." : "Створити"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-panel fade-in">
+            <h3>
+              {activeTab === "books"
+                ? "📖 Редагувати книгу"
+                : "👥 Редагувати користувача"}
+            </h3>
+            <form onSubmit={handleUpdate}>
+              {activeTab === "books" && (
+                <>
+                  <input
+                    required
+                    placeholder="Назва"
+                    defaultValue={editingItem?.Title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                  />
+                  <input
+                    required
+                    placeholder="Автор"
+                    defaultValue={editingItem?.Author}
+                    onChange={(e) =>
+                      setFormData({ ...formData, author: e.target.value })
+                    }
+                  />
+                  <select
+                    required
+                    defaultValue={editingItem?.CategoryID}
+                    onChange={(e) =>
+                      setFormData({ ...formData, categoryId: e.target.value })
+                    }
+                  >
+                    <option value="">Оберіть категорію</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    required
+                    type="number"
+                    placeholder="Ціна"
+                    defaultValue={editingItem?.Price}
+                    onChange={(e) =>
+                      setFormData({ ...formData, price: e.target.value })
+                    }
+                  />
+                  <input
+                    required
+                    type="number"
+                    placeholder="Запас на складі"
+                    defaultValue={editingItem?.TotalStock}
+                    onChange={(e) =>
+                      setFormData({ ...formData, stock: e.target.value })
+                    }
+                  />
+                </>
+              )}
+              {activeTab === "users" && (
+                <>
+                  <input
+                    required
+                    placeholder="Повне ім'я"
+                    defaultValue={editingItem?.FullName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, fullName: e.target.value })
+                    }
+                  />
+                  <input
+                    required
+                    type="email"
+                    placeholder="Email"
+                    defaultValue={editingItem?.Email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                  />
+                  <select
+                    required
+                    defaultValue={editingItem?.Role}
+                    onChange={(e) =>
+                      setFormData({ ...formData, role: e.target.value })
+                    }
+                  >
+                    <option value="User">User</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </>
+              )}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingItem(null);
+                    setFormData({});
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Скасувати
+                </button>
+                <button
+                  type="submit"
+                  className="submit-btn"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Збереження..." : "Оновити"}
                 </button>
               </div>
             </form>
