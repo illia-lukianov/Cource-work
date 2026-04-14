@@ -29,6 +29,20 @@ if (envFilePath) {
   console.log(`[DEBUG] Loading .env from: ${envFilePath}`);
   dotenv.config({ path: envFilePath });
   console.log("[DEBUG] dotenv.config completed");
+
+  // Debug: read and display raw file content
+  try {
+    const rawContent = fs.readFileSync(envFilePath, "utf-8");
+    console.log("[DEBUG] Raw .env content (with visible whitespace):");
+    console.log(
+      rawContent
+        .split("\n")
+        .map((line, i) => `  Line ${i}: [${line}]`)
+        .join("\n"),
+    );
+  } catch (e) {
+    console.error("[DEBUG] Failed to read .env for debugging:", e);
+  }
 } else {
   console.warn("⚠️ .env file not found in any of these paths:", envPaths);
   console.warn(
@@ -43,16 +57,20 @@ console.log(
   "  DB_PASSWORD:",
   process.env.DB_PASSWORD ? "✅ set" : "❌ not set",
 );
-console.log("  DB_SERVER:", process.env.DB_SERVER || "❌ empty");
+console.log("  DB_SERVER raw:", `[${process.env.DB_SERVER}]`);
+console.log(
+  "  DB_SERVER trimmed:",
+  `[${(process.env.DB_SERVER || "").trim()}]`,
+);
 console.log("  DB_DATABASE:", process.env.DB_DATABASE || "❌ empty");
 console.log("  DB_PORT:", process.env.DB_PORT || "default 1433");
 
 const config: sql.config = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER || "",
-  database: process.env.DB_DATABASE || "",
-  port: parseInt(process.env.DB_PORT || "1433", 10),
+  user: process.env.DB_USER?.trim(),
+  password: process.env.DB_PASSWORD?.trim(),
+  server: (process.env.DB_SERVER || "").trim(),
+  database: (process.env.DB_DATABASE || "").trim(),
+  port: parseInt((process.env.DB_PORT || "1433").trim(), 10),
   options: {
     encrypt: true,
     trustServerCertificate: false,
@@ -75,6 +93,7 @@ export async function connectDB() {
     console.log("  user:", config.user ? "✅ set" : "❌ EMPTY");
     console.log("  password:", config.password ? "✅ set" : "❌ EMPTY");
     console.log("  port:", config.port);
+    console.log("  [FINAL] using server:", `[${config.server}]`);
 
     pool = await sql.connect(config);
     console.log("✅ Успішно підключено до Azure SQL через SQL Auth");

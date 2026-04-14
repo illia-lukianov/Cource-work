@@ -60,7 +60,7 @@ jobs:
           DB_USER=$env:DB_USER
           DB_PASSWORD=$env:DB_PASSWORD
           DB_PORT=1433
-          "@ | Out-File -FilePath .env -Encoding UTF8
+          "@ | Out-File -FilePath .env -Encoding UTF8NoBOM
           Write-Host "✅ .env file created"
           Get-Content .env
 
@@ -70,6 +70,10 @@ jobs:
           if [ -f .env ]; then
             echo "✅ .env file exists"
             wc -l .env
+            echo "------- .env content (with line endings visible) -------"
+            cat -A .env
+            echo "------- .env hex dump (first 200 bytes) -------"
+            xxd -l 200 .env || od -A x -t x1z -N 200 .env
           else
             echo "❌ .env file NOT found"
             ls -la
