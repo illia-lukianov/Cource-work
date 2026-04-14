@@ -25,8 +25,15 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Configure git and npm for HTTPS (fix SSH issues)
+        run: |
+          git config --global url."https://github.com/".insteadOf "git://github.com/"
+          git config --global url."https://".insteadOf "git://"
+          npm config set git-protocol https
+          
       - name: Install dependencies
-        run: npm install
+        run: npm install --verbose --fetch-timeout=60000 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+        timeout-minutes: 30
 
       - name: Create .env file (Unix)
         if: runner.os != 'Windows'
@@ -70,10 +77,10 @@ jobs:
           if [ -f .env ]; then
             echo "✅ .env file exists"
             wc -l .env
-            echo "------- .env content (with line endings visible) -------"
-            cat -A .env
-            echo "------- .env hex dump (first 200 bytes) -------"
-            xxd -l 200 .env || od -A x -t x1z -N 200 .env
+            echo "------- .env content -------"
+            cat .env
+            echo "------- .env hex dump (first 300 bytes) -------"
+            od -A x -t x1z -N 300 .env
           else
             echo "❌ .env file NOT found"
             ls -la
