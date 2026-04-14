@@ -31,7 +31,7 @@ jobs:
           git config --global url."https://".insteadOf "git://"
           
       - name: Install dependencies
-        run: npm install --verbose --fetch-timeout=60000 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+        run: npm ci --legacy-peer-deps
         timeout-minutes: 30
 
       - name: Create .env file (Unix)
@@ -78,8 +78,9 @@ jobs:
             wc -l .env
             echo "------- .env content -------"
             cat .env
-            echo "------- .env hex dump (first 300 bytes) -------"
-            od -A x -t x1z -N 300 .env
+            echo "------- .env file size and type -------"
+            ls -la .env
+            file .env || echo "(file command not available)"
           else
             echo "❌ .env file NOT found"
             ls -la
