@@ -8,15 +8,29 @@ import { OrderRepository } from "./database/services/order.service";
 import { ReportService } from "./database/services/report.services";
 import { UserRepository } from "./database/services/user.service";
 
+// Vite plugin injected constants
+declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
+declare const MAIN_WINDOW_VITE_NAME: string | undefined;
+
 // Get environment variables
-const { MAIN_WINDOW_VITE_DEV_SERVER_URL, MAIN_WINDOW_VITE_NAME } = process.env;
-  try {
-    if (require("electron-squirrel-startup")) {
-      app.quit();
-    }
-  } catch (e) {
-    console.error("Squirrel startup error:", e);
+const {
+  MAIN_WINDOW_VITE_DEV_SERVER_URL: envDevServer,
+  MAIN_WINDOW_VITE_NAME: envName,
+} = process.env;
+const devServerUrl = MAIN_WINDOW_VITE_DEV_SERVER_URL || envDevServer;
+const viteName = MAIN_WINDOW_VITE_NAME || envName;
+console.log("Env vars:", {
+  MAIN_WINDOW_VITE_DEV_SERVER_URL,
+  MAIN_WINDOW_VITE_NAME,
+});
+console.log("__dirname:", __dirname);
+try {
+  if (require("electron-squirrel-startup")) {
+    app.quit();
   }
+} catch (e) {
+  console.error("Squirrel startup error:", e);
+}
 
 const SESSION_FILE = path.join(app.getPath("userData"), "session.json");
 
@@ -54,21 +68,30 @@ const createWindow = () => {
     },
   });
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  if (devServerUrl) {
+    mainWindow.loadURL(devServerUrl);
   } else {
-    const namedRendererIndex = path.join(
-      __dirname,
-      `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-    );
-    const defaultRendererIndex = path.join(__dirname, "../renderer/index.html");
-    const indexPath = fs.existsSync(namedRendererIndex)
-      ? namedRendererIndex
-      : defaultRendererIndex;
+    const paths = [
+      path.join(__dirname, `../renderer/${viteName}/index.html`),
+      path.join(__dirname, "../renderer/index.html"),
+      path.join(__dirname, ".vite/renderer/index.html"),
+      path.join(process.resourcesPath, "renderer/index.html"),
+    ];
 
-    mainWindow
-      .loadFile(indexPath)
-      .catch((e) => console.error("Failed to load index.html:", e));
+    let loaded = false;
+    for (const indexPath of paths) {
+      if (fs.existsSync(indexPath)) {
+        mainWindow.loadFile(indexPath);
+        loaded = true;
+        break;
+      }
+    }
+
+    if (!loaded) {
+      console.error(
+        "Could not find renderer index.html in any expected location",
+      );
+    }
   }
 
   mainWindow.once("ready-to-show", () => mainWindow?.show());

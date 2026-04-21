@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
-import { getUserByEmailQuery } from "../queries/user.queries";
 
 export const Validators = {
   isValidEmail(email: string): boolean {
@@ -28,7 +27,7 @@ export const UserRepository = {
     const result = await pool
       .request()
       .input("email", sql.NVarChar, email)
-      .query(getUserByEmailQuery);
+      .query(`SELECT * FROM Users WHERE Email = @email`);
     return result.recordset[0] || null;
   },
 
@@ -60,9 +59,9 @@ export const UserRepository = {
         .input("Email", sql.NVarChar, email)
         .input("PassHash", sql.NVarChar, hashedPassword)
         .input("Role", sql.NVarChar, role || "User")
-        .execute("sp_CreateUser");
+        .execute("sp_CreateUserWithCharID");
 
-      const newUser = await this.findByEmail(email);
+      const newUser = result.recordset[0];
 
       return {
         success: true,
@@ -118,13 +117,13 @@ export const UserRepository = {
     return result.recordset;
   },
 
-  async delete(id: string | number) {
+  async delete(id: string) {
     try {
       const pool = await connectDB();
       await pool
         .request()
-        .input("ID", sql.Int, Number(id))
-        .execute("sp_DeleteUser");
+        .input("ID", sql.NVarChar, id)
+        .query("DELETE FROM Users WHERE UserID = @ID");
       return { success: true };
     } catch (err: any) {
       return {
@@ -135,7 +134,7 @@ export const UserRepository = {
   },
 
   async update(data: {
-    id: number;
+    id: string;
     fullName: string;
     email: string;
     role: string;
@@ -153,9 +152,9 @@ export const UserRepository = {
       const existingUser = await pool
         .request()
         .input("email", sql.NVarChar, data.email)
+        .input("userId", sql.NVarChar, data.id)
         .query(
-          "SELECT UserID FROM Users WHERE Email = @email AND UserID != " +
-            data.id,
+          "SELECT UserID FROM Users WHERE Email = @email AND UserID != @userId",
         );
 
       if (existingUser.recordset.length > 0)
@@ -166,11 +165,13 @@ export const UserRepository = {
 
       await pool
         .request()
-        .input("UserID", sql.Int, data.id)
+        .input("UserID", sql.NVarChar, data.id)
         .input("FullName", sql.NVarChar, data.fullName)
         .input("Email", sql.NVarChar, data.email)
         .input("Role", sql.NVarChar, data.role)
-        .execute("sp_UpdateUser");
+        .query(
+          "UPDATE Users SET FullName = @FullName, Email = @Email, Role = @Role WHERE UserID = @UserID",
+        );
 
       return { success: true };
     } catch (err: any) {

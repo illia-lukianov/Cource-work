@@ -162,6 +162,7 @@
     cursor: pointer;
     font-size: 18px;
     transition: all 0.3s;
+    margin-left: 16px;
 }
 
 .themeBtn:hover {
@@ -660,6 +661,42 @@ tbody tr:hover {
 .submitBtn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+.orderItems {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.orderItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.orderItem select {
+    flex: 1;
+}
+
+.orderItem input {
+    width: 80px;
+}
+
+.orderItem span {
+    width: 80px;
+    text-align: right;
+    font-weight: 600;
+}
+
+.total {
+    text-align: right;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--primary);
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--card-border);
 }
 
 @media (max-width: 768px) {

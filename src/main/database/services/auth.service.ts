@@ -1,7 +1,6 @@
 import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
-import { findUserByEmailQuery } from "../queries/auth.queries";
 
 export const UserRepository = {
   async findByEmail(email: string) {
@@ -9,7 +8,7 @@ export const UserRepository = {
     const result = await pool
       .request()
       .input("email", sql.NVarChar, email)
-      .query(findUserByEmailQuery);
+      .query(`SELECT * FROM Users WHERE Email = @email`);
     return result.recordset[0] || null;
   },
 
@@ -31,7 +30,7 @@ export const UserRepository = {
         .input("Email", sql.NVarChar, email)
         .input("PassHash", sql.NVarChar, hashedPassword)
         .input("Role", sql.NVarChar, role || "User")
-        .execute("sp_RegisterUser");
+        .execute("sp_CreateUserWithCharID");
 
       const newUser = result.recordset[0];
 

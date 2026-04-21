@@ -1,11 +1,14 @@
 import sql from "mssql";
 import { connectDB } from "../connectDb";
-import { deleteBookByIdQuery, getAllBooksQuery } from "../queries/book.queries";
+import {
+  deleteBookByIdQuery,
+  getBookDetailsQuery,
+} from "../queries/book.queries";
 
 export const BookRepository = {
   async getAllForDashboard() {
     const pool = await connectDB();
-    const result = await pool.request().query(getAllBooksQuery);
+    const result = await pool.request().query(getBookDetailsQuery);
     return result.recordset;
   },
 
@@ -13,7 +16,7 @@ export const BookRepository = {
     title: string;
     author: string;
     price: number;
-    categoryId: number;
+    categoryId: string;
     stock: number;
   }) {
     try {
@@ -24,7 +27,7 @@ export const BookRepository = {
         .input("Title", sql.NVarChar, data.title)
         .input("Author", sql.NVarChar, data.author)
         .input("Price", sql.Decimal(10, 2), data.price)
-        .input("CategoryID", sql.Int, data.categoryId)
+        .input("CategoryID", sql.NVarChar, data.categoryId)
         .input("Quantity", sql.Int, data.stock || 0)
         .execute("sp_CreateBook");
 
@@ -38,21 +41,21 @@ export const BookRepository = {
     }
   },
 
-  async deleteBook(id: string | number) {
+  async deleteBook(id: string) {
     const pool = await connectDB();
     await pool
       .request()
-      .input("id", sql.Int, Number(id))
+      .input("id", sql.NVarChar, id)
       .query(deleteBookByIdQuery);
     return { success: true };
   },
 
   async updateBook(data: {
-    id: number;
+    id: string;
     title: string;
     author: string;
     price: number;
-    categoryId: number;
+    categoryId: string;
     stock: number;
   }) {
     try {
@@ -60,11 +63,11 @@ export const BookRepository = {
 
       await pool
         .request()
-        .input("BookID", sql.Int, data.id)
+        .input("BookID", sql.NVarChar, data.id)
         .input("Title", sql.NVarChar, data.title)
         .input("Author", sql.NVarChar, data.author)
         .input("Price", sql.Decimal(10, 2), data.price)
-        .input("CategoryID", sql.Int, data.categoryId)
+        .input("CategoryID", sql.NVarChar, data.categoryId)
         .input("Quantity", sql.Int, data.stock || 0)
         .execute("sp_UpdateBook");
 

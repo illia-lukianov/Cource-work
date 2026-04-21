@@ -17,6 +17,8 @@ const Dashboard = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
   const [categories, setCategories] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [books, setBooks] = useState<any[]>([]);
 
   const navigate = useNavigate();
 
@@ -29,6 +31,25 @@ const Dashboard = () => {
   const loadCategories = async () => {
     const res = await window.api.invoke("db:get-categories");
     if (res) setCategories(res);
+  };
+
+  const loadOrderDependencies = async () => {
+    const [usersRes, booksRes] = await Promise.all([
+      window.api.invoke("db:get-users"),
+      window.api.invoke("db:get-books"),
+    ]);
+
+    if (Array.isArray(usersRes)) {
+      setUsers(usersRes);
+    } else if (usersRes?.data) {
+      setUsers(usersRes.data);
+    }
+
+    if (Array.isArray(booksRes)) {
+      setBooks(booksRes);
+    } else if (booksRes?.data) {
+      setBooks(booksRes.data);
+    }
   };
 
   const refreshData = async () => {
@@ -47,7 +68,7 @@ const Dashboard = () => {
           window.api.invoke("db:get-orders"),
           window.api.invoke("db:get-users"),
         ]);
-        const books = booksRes?.data || [];
+        const books = booksRes?.data || booksRes || [];
         setStatsData({
           totalRevenue:
             ordersRaw?.reduce(
@@ -106,15 +127,48 @@ const Dashboard = () => {
     setIsSubmitting(true);
 
     let channel = "";
+    let payload: any = activeTab === "categories" ? formData.name : formData;
     if (activeTab === "books") channel = "db:create-book";
     else if (activeTab === "users") channel = "db:create-user";
     else if (activeTab === "categories") channel = "db:create-category";
+    else if (activeTab === "orders") {
+      channel = "db:create-order";
+      // Фільтруємо тільки валідні елементи (з вибраною книгою та кількістю > 0)
+      const items = (formData.items || [])
+        .filter((item: any) => item.bookId && Number(item.quantity) > 0)
+        .map((item: any) => ({
+          bookId: String(item.bookId),
+          quantity: Number(item.quantity),
+        }));
+
+      if (!formData.userId) {
+        alert("Оберіть користувача для замовлення");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!items.length) {
+        alert("Додайте хоча б одну книгу до замовлення");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Розраховуємо загальну суму на основі збережених цін в формі
+      const finalAmount = (formData.items || []).reduce(
+        (sum: number, item: any) =>
+          sum + (item.price || 0) * (item.quantity || 1),
+        0,
+      );
+
+      payload = {
+        userId: String(formData.userId),
+        finalAmount,
+        items,
+      };
+    }
 
     try {
-      const res = await window.api.invoke(
-        channel,
-        activeTab === "categories" ? formData.name : formData,
-      );
+      const res = await window.api.invoke(channel, payload);
       if (res?.success) {
         setShowAddModal(false);
         setFormData({});
@@ -137,17 +191,17 @@ const Dashboard = () => {
     if (activeTab === "books") {
       channel = "db:update-book";
       payload = {
-        id: Number(editingItem.Id),
+        id: String(editingItem.Id),
         title: (formData.title || editingItem.Title).trim(),
         author: (formData.author || editingItem.Author).trim(),
         price: Number(formData.price || editingItem.Price),
-        categoryId: Number(formData.categoryId || editingItem.CategoryID),
+        categoryId: String(formData.categoryId || editingItem.CategoryID),
         stock: Number(formData.stock || editingItem.TotalStock),
       };
     } else if (activeTab === "users") {
       channel = "db:update-user";
       payload = {
-        id: Number(editingItem.UserID),
+        id: String(editingItem.UserID),
         fullName: (formData.fullName || editingItem.FullName).trim(),
         email: (formData.email || editingItem.Email).trim(),
         role: formData.role || editingItem.Role,
@@ -155,7 +209,7 @@ const Dashboard = () => {
     } else if (activeTab === "orders") {
       channel = "db:update-order-status";
       payload = {
-        id: Number(editingItem.OrderID),
+        id: String(editingItem.OrderID),
         status: formData.status || editingItem.Status,
       };
     }
@@ -320,11 +374,22 @@ const Dashboard = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              {["books", "users", "categories"].includes(activeTab) && (
+              {["books", "users", "categories", "orders"].includes(
+                activeTab,
+              ) && (
                 <button
                   className={styles.addBtn}
-                  onClick={() => {
-                    setFormData({});
+                  onClick={async () => {
+                    if (activeTab === "orders") {
+                      await loadOrderDependencies();
+                      setFormData({
+                        userId: "",
+                        items: [{ bookId: "", quantity: 1 }],
+                        total: 0,
+                      });
+                    } else {
+                      setFormData({});
+                    }
                     setShowAddModal(true);
                   }}
                 >
@@ -669,7 +734,9 @@ const Dashboard = () => {
                 ? "📂 Нова категорія"
                 : activeTab === "books"
                   ? "📖 Додати книгу"
-                  : "👥 Новий користувач"}
+                  : activeTab === "users"
+                    ? "👥 Новий користувач"
+                    : "📦 Нове замовлення"}
             </h3>
             <form onSubmit={handleCreate}>
               {activeTab === "categories" && (
@@ -751,6 +818,98 @@ const Dashboard = () => {
                       setFormData({ ...formData, password: e.target.value })
                     }
                   />
+                </>
+              )}
+              {activeTab === "orders" && (
+                <>
+                  <select
+                    required
+                    value={formData.userId || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, userId: e.target.value })
+                    }
+                  >
+                    <option value="">Оберіть користувача</option>
+                    {users.map((u) => (
+                      <option key={u.UserID} value={u.UserID}>
+                        {u.FullName} ({u.Email})
+                      </option>
+                    ))}
+                  </select>
+                  <div className={styles.orderItems}>
+                    {formData.items?.map((item: any, index: number) => (
+                      <div key={index} className={styles.orderItem}>
+                        <select
+                          required
+                          value={item.bookId || ""}
+                          onChange={(e) => {
+                            const newItems = [...formData.items];
+                            newItems[index].bookId = e.target.value;
+                            const selectedBook = books.find(
+                              (b) => b.Id == e.target.value,
+                            );
+                            newItems[index].price = selectedBook
+                              ? selectedBook.Price
+                              : 0;
+                            setFormData({ ...formData, items: newItems });
+                          }}
+                        >
+                          <option value="">Оберіть книгу</option>
+                          {books.map((b) => (
+                            <option key={b.Id} value={b.Id}>
+                              {b.Title} - {b.Price}₴
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          required
+                          type="number"
+                          min="1"
+                          value={item.quantity || 1}
+                          onChange={(e) => {
+                            const newItems = [...formData.items];
+                            newItems[index].quantity = Number(e.target.value);
+                            setFormData({ ...formData, items: newItems });
+                          }}
+                        />
+                        <span>{(item.price || 0) * (item.quantity || 1)}₴</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newItems = formData.items.filter(
+                              (_: any, i: number) => i !== index,
+                            );
+                            setFormData({ ...formData, items: newItems });
+                          }}
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          items: [
+                            ...formData.items,
+                            { bookId: "", quantity: 1 },
+                          ],
+                        })
+                      }
+                    >
+                      + Додати книгу
+                    </button>
+                  </div>
+                  <div className={styles.total}>
+                    Загальна сума:{" "}
+                    {formData.items?.reduce(
+                      (sum: number, item: any) =>
+                        sum + (item.price || 0) * (item.quantity || 1),
+                      0,
+                    ) || 0}
+                    ₴
+                  </div>
                 </>
               )}
               <div className={styles.modalActions}>

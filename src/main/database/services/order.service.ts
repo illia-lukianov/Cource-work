@@ -9,14 +9,14 @@ export const OrderRepository = {
     return result.recordset;
   },
 
-  async updateStatus(id: string | number, status: string) {
+  async updateStatus(id: string, status: string) {
     try {
       const pool = await connectDB();
       await pool
         .request()
-        .input("OrderID", sql.Int, Number(id))
+        .input("OrderID", sql.NVarChar, id)
         .input("Status", sql.NVarChar, status)
-        .execute("sp_UpdateOrderStatus");
+        .query("UPDATE Orders SET Status = @Status WHERE OrderID = @OrderID");
       return { success: true };
     } catch (err) {
       console.error("Помилка оновлення статусу:", err);
@@ -25,18 +25,21 @@ export const OrderRepository = {
   },
 
   async createOrder(orderData: {
-    userId: number;
+    userId: string;
     finalAmount: number;
-    items: { bookId: number; quantity: number }[];
+    items: { bookId: string; quantity: number }[];
   }) {
     try {
       const pool = await connectDB();
 
+      const itemsJson = JSON.stringify(orderData.items);
+      console.log("Sending ItemsJson:", itemsJson);
+
       const result = await pool
         .request()
-        .input("UserID", sql.Int, orderData.userId)
+        .input("UserID", sql.NVarChar, orderData.userId)
         .input("FinalAmount", sql.Decimal(10, 2), orderData.finalAmount)
-        .input("ItemsJson", sql.NVarChar, JSON.stringify(orderData.items))
+        .input("ItemsJson", sql.NVarChar, itemsJson)
         .execute("sp_CreateOrder");
 
       return {
@@ -49,13 +52,21 @@ export const OrderRepository = {
     }
   },
 
-  async deleteOrder(id: string | number) {
+  async deleteOrder(id: string) {
     try {
       const pool = await connectDB();
+      const request = pool.request();
+      request.input("OrderID", sql.NVarChar, id);
+
+      // Видалити спочатку OrderItems
+      await request.query("DELETE FROM OrderItems WHERE OrderID = @OrderID");
+
+      // Потім видалити замовлення
       await pool
         .request()
-        .input("OrderID", sql.Int, Number(id))
-        .execute("sp_DeleteOrder");
+        .input("OrderID", sql.NVarChar, id)
+        .query("DELETE FROM Orders WHERE OrderID = @OrderID");
+
       return { success: true };
     } catch (err: any) {
       console.error("Помилка видалення замовлення:", err);
