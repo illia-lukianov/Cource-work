@@ -3,12 +3,20 @@ import { connectDB } from "../connectDb";
 import {
   deleteBookByIdQuery,
   getBookDetailsQuery,
+  getBookForUsersQuery,
 } from "../queries/book.queries";
+import { UserRepository } from "./user.service";
 
 export const BookRepository = {
   async getAllForDashboard() {
-    const pool = await connectDB();
+    const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
     const result = await pool.request().query(getBookDetailsQuery);
+    return result.recordset;
+  },
+
+  async getAllForUsers() {
+    const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
+    const result = await pool.request().query(getBookForUsersQuery);
     return result.recordset;
   },
 
@@ -20,7 +28,7 @@ export const BookRepository = {
     stock: number;
   }) {
     try {
-      const pool = await connectDB();
+      const pool = await connectDB(UserRepository.getUserRole());
 
       const result = await pool
         .request()
@@ -42,11 +50,8 @@ export const BookRepository = {
   },
 
   async deleteBook(id: string) {
-    const pool = await connectDB();
-    await pool
-      .request()
-      .input("id", sql.NVarChar, id)
-      .query(deleteBookByIdQuery);
+    const pool = await connectDB(UserRepository.getUserRole());
+    await pool.request().input("id", sql.Int, id).query(deleteBookByIdQuery);
     return { success: true };
   },
 
@@ -59,7 +64,7 @@ export const BookRepository = {
     stock: number;
   }) {
     try {
-      const pool = await connectDB();
+      const pool = await connectDB(UserRepository.getUserRole());
 
       await pool
         .request()

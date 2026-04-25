@@ -1,14 +1,15 @@
 import { connectDB } from "../connectDb";
 import {
   getCustomerReportQuery,
-  getSalesReportQuery,
   getPriceAnalysisQuery,
+  getSalesReportQuery,
 } from "../queries/report.queries";
+import { UserRepository } from "./user.service";
 
 export const ReportService = {
   async getReport(type: string): Promise<any[]> {
     try {
-      const pool = await connectDB();
+      const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
       const request = pool.request();
 
       let query = "";

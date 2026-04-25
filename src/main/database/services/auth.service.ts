@@ -2,6 +2,18 @@ import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
 
+// ⚠️ ПРИМІТКА: Цей файл НЕ ВИКОРИСТОВУЄТЬСЯ!
+// Функціональність перенесена в user.service.ts
+// UserRepository експортується з user.service.ts та використовується в main.ts
+
+// Глобальна змінна для зберігання інформації про поточного користувача
+let currentUser: {
+  id: number;
+  name: string;
+  role: string;
+  email: string;
+} | null = null;
+
 export const UserRepository = {
   async findByEmail(email: string) {
     const pool = await connectDB();
@@ -59,12 +71,53 @@ export const UserRepository = {
     const isMatch = await bcrypt.compare(pass, user.PasswordHash);
 
     if (isMatch) {
+      // Зберігаємо інформацію про поточного користувача
+      currentUser = {
+        id: user.UserID,
+        name: user.FullName,
+        role: user.Role,
+        email: user.Email,
+      };
+
+      // Переконектюємося до БД з ролю користувача
+      await connectDB(user.Role);
+
+      console.log(
+        `[AUTH] Користувач авторизований: ${user.FullName} (Роль: ${user.Role})`,
+      );
+
       return {
         success: true,
-        user: { id: user.UserID, name: user.FullName, role: user.Role },
+        user: {
+          id: user.UserID,
+          name: user.FullName,
+          role: user.Role,
+          email: user.Email,
+        },
       };
     } else {
       return { success: false, message: "Невірний пароль" };
     }
+  },
+
+  // Функція для отримання інформації про поточного користувача
+  getCurrentUser() {
+    return currentUser;
+  },
+
+  // Функція для перевірки чи користувач має права адміністратора
+  isAdmin(): boolean {
+    return currentUser?.role === "Admin" || currentUser?.role === "admin";
+  },
+
+  // Функція для перевірки чи користувач має права звичайного користувача
+  isUser(): boolean {
+    return currentUser?.role === "User" || currentUser?.role === "user";
+  },
+
+  // Функція для очищення інформації про користувача при виході
+  clearCurrentUser() {
+    currentUser = null;
+    console.log("[AUTH] Користувач вийшов з системи");
   },
 };

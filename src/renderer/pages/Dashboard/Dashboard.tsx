@@ -20,7 +20,29 @@ const Dashboard = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
 
+  // Нові стани для управління ролями
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
   const navigate = useNavigate();
+
+  // useEffect для отримання інформації про користувача при завантаженні
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const role = await window.api.getUserRole();
+      setUserRole(role);
+      const admin = await window.api.isAdmin();
+      setIsAdmin(admin);
+
+      // Якщо це не адмін, не дозволяємо доступ до адмінки
+      if (!admin && role !== "Admin") {
+        alert("❌ Доступ заборонено: потрібні права адміністратора");
+        navigate("/");
+        return;
+      }
+    };
+    loadUserInfo();
+  }, [navigate]);
 
   useEffect(() => {
     setSearch("");
@@ -50,6 +72,11 @@ const Dashboard = () => {
     } else if (booksRes?.data) {
       setBooks(booksRes.data);
     }
+  };
+
+  // Функція для зміни таба з перевіркою ролі
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
   };
 
   const refreshData = async () => {
@@ -111,6 +138,11 @@ const Dashboard = () => {
         result = {
           success: true,
           data: reportData,
+        };
+      } else if (activeTab === "shop") {
+        result = {
+          success: true,
+          data: await window.api.invoke("db:get-books"),
         };
       }
 
@@ -316,7 +348,7 @@ const Dashboard = () => {
             className={activeTab === "categories" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
-              setActiveTab("categories");
+              handleTabChange("categories");
             }}
           >
             📂 Категорії
@@ -336,7 +368,7 @@ const Dashboard = () => {
             className={activeTab === "users" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
-              setActiveTab("users");
+              handleTabChange("users");
             }}
           >
             👥 Користувачі
@@ -351,7 +383,18 @@ const Dashboard = () => {
           >
             📊 Звіти
           </button>
+
+          <button
+            className={activeTab === "shop" ? styles.active : ""}
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab("shop");
+            }}
+          >
+            🛍️ Магазин
+          </button>
         </nav>
+        <p>{}</p>
         <button
           onClick={async () => {
             await window.api.logout();
@@ -434,11 +477,8 @@ const Dashboard = () => {
                 </button>
               </div>
             )}
-            <button
-              className={`${styles.refreshBtn} ${isLoading ? styles.loading : ""}`}
-              onClick={refreshData}
-            >
-              🔄
+            <button className={`${styles.refreshBtn}`} onClick={refreshData}>
+              <span className={`${isLoading ? styles.loading : ""}`}>🔄</span>
             </button>
           </div>
 
@@ -551,6 +591,15 @@ const Dashboard = () => {
                         <th>Дата зміни</th>
                       </tr>
                     )}
+                  {activeTab === "shop" && (
+                    <tr>
+                      <th>Назва</th>
+                      <th>Автор</th>
+                      <th>Ціна</th>
+                      <th>Склад</th>
+                      <th>Категорія</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {filteredData.map((item: any) => (
@@ -717,6 +766,29 @@ const Dashboard = () => {
                             </td>
                           </>
                         )}
+                      {activeTab === "shop" && (
+                        <>
+                          <td>
+                            <b>{item.Title}</b>
+                          </td>
+                          <td>{item.Author}</td>
+                          <td className={styles.priceHighlight}>
+                            {item.Price} ₴
+                          </td>
+                          <td>
+                            {item.TotalStock > 0 ? (
+                              <span className={styles.inStock}>
+                                ✅ {item.TotalStock} шт
+                              </span>
+                            ) : (
+                              <span className={styles.outOfStock}>
+                                ❌ Немає в наявності
+                              </span>
+                            )}
+                          </td>
+                          <td>{item.CategoryName || "Без категорії"}</td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>

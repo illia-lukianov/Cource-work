@@ -120,13 +120,35 @@ const registerIpcHandlers = () => {
   });
   ipcMain.handle("auth:logout", () => {
     currentUser = null;
+    UserRepository.clearCurrentUser();
     deleteSession();
     return { success: true };
+  });
+
+  // Нові обробники для роботи з інформацією про користувача
+  ipcMain.handle("auth:get-current-user", () => {
+    return UserRepository.getCurrentUser();
+  });
+
+  ipcMain.handle("auth:is-admin", () => {
+    return UserRepository.isAdmin();
+  });
+
+  ipcMain.handle("auth:get-user-role", () => {
+    return UserRepository.getUserRole();
   });
 
   ipcMain.handle("db:get-books", async () => {
     try {
       const books = await BookRepository.getAllForDashboard();
+      return { success: true, data: books };
+    } catch (err) {
+      return { success: false, data: [] };
+    }
+  });
+  ipcMain.handle("db:get-books-for-users", async () => {
+    try {
+      const books = await BookRepository.getAllForUsers();
       return { success: true, data: books };
     } catch (err) {
       return { success: false, data: [] };

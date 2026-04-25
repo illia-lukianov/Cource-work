@@ -230,22 +230,18 @@
     transition: all 0.3s;
 }
 
-.refreshBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    transform: rotate(180deg);
-}
-
-.refreshBtn.loading {
+.loading {
+    display: inline-block;
     animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* =========== TABLE & SCROLL =========== */

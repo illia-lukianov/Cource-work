@@ -2,6 +2,14 @@ import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
 
+// Глобальна змінна для зберігання інформації про поточного користувача
+let currentUser: {
+  id: number;
+  name: string;
+  role: "Admin" | "User";
+  email: string;
+} | null = null;
+
 export const Validators = {
   isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,12 +100,27 @@ export const UserRepository = {
       const isMatch = await bcrypt.compare(pass, user.PasswordHash);
 
       if (isMatch) {
+        currentUser = {
+          id: user.UserID,
+          name: user.FullName,
+          role: user.Role,
+          email: user.Email,
+        };
+
+        // Переконектюємося до БД з ролю користувача
+        await connectDB(user.Role);
+
+        console.log(
+          `[AUTH] Користувач авторизований: ${user.FullName} (Роль: ${user.Role})`,
+        );
+
         return {
           success: true,
           user: {
             id: user.UserID,
             name: user.FullName,
             role: user.Role,
+            email: user.Email,
           },
         };
       } else {
@@ -110,7 +133,7 @@ export const UserRepository = {
   },
 
   async getAll() {
-    const pool = await connectDB();
+    const pool = await connectDB(currentUser?.role);
     const result = await pool
       .request()
       .query(`SELECT UserID, FullName, Email, Role FROM Users`);
@@ -119,7 +142,7 @@ export const UserRepository = {
 
   async delete(id: string) {
     try {
-      const pool = await connectDB();
+      const pool = await connectDB(currentUser?.role);
       await pool
         .request()
         .input("ID", sql.NVarChar, id)
@@ -146,7 +169,7 @@ export const UserRepository = {
       if (!Validators.isValidEmail(data.email))
         return { success: false, message: "Невірний формат Email" };
 
-      const pool = await connectDB();
+      const pool = await connectDB(currentUser?.role);
 
       // Check if email is already taken by a different user
       const existingUser = await pool
@@ -178,5 +201,31 @@ export const UserRepository = {
       console.error("Помилка оновлення користувача:", err);
       return { success: false, message: "Не вдалося оновити користувача" };
     }
+  },
+
+  // Функція для отримання інформації про поточного користувача
+  getCurrentUser() {
+    return currentUser;
+  },
+
+  // Функція для перевірки чи користувач має права адміністратора
+  isAdmin(): boolean {
+    return currentUser?.role === "Admin";
+  },
+
+  // Функція для перевірки чи користувач має права звичайного користувача
+  isUser(): boolean {
+    return currentUser?.role === "User";
+  },
+
+  // Функція для очищення інформації про користувача при виході
+  clearCurrentUser() {
+    currentUser = null;
+    console.log("[AUTH] Користувач вийшов з системи");
+  },
+
+  // Функція для отримання ролі поточного користувача
+  getUserRole(): string | null {
+    return currentUser?.role || null;
   },
 };
