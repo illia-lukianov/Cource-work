@@ -4,7 +4,6 @@ import { getAllOrdersQuery } from "../queries/order.queries";
 import { UserRepository } from "./user.service";
 
 export const OrderRepository = {
-  
   async getAll() {
     try {
       const pool = await connectDB(UserRepository.getUserRole() ?? "User");
@@ -16,7 +15,6 @@ export const OrderRepository = {
     }
   },
 
-  
   async updateStatus(id: string, status: string) {
     try {
       const pool = await connectDB(UserRepository.getUserRole() ?? "User");
@@ -32,26 +30,25 @@ export const OrderRepository = {
     }
   },
 
-  
   async createOrder(orderData: {
     userId: number;
     finalAmount: number;
-    items: { bookId: string; quantity: number }[];
+    items: { bookId: number; quantity: number }[];
   }) {
     try {
       const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
-      const itemsJson = JSON.stringify(orderData.items);
-      console.log(
-        "[ORDER] Criando novo pedido para usuário:",
-        orderData.userId,
-      );
+      console.log("[ORDER] Creating new order for user:", orderData.userId);
 
       const result = await pool
         .request()
         .input("UserID", sql.Int, orderData.userId)
         .input("FinalAmount", sql.Decimal(10, 2), orderData.finalAmount)
-        .input("ItemsJson", sql.NVarChar, itemsJson)
+        .input(
+          "ItemsJson",
+          sql.NVarChar(sql.MAX),
+          JSON.stringify(orderData.items),
+        )
         .execute("sp_CreateOrder");
 
       return {
@@ -64,21 +61,18 @@ export const OrderRepository = {
     }
   },
 
-  
   async deleteOrder(id: string) {
     try {
       const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
-      
       await pool
         .request()
-        .input("OrderID", sql.Int, id)
+        .input("OrderID", sql.NVarChar(10), id)
         .query("DELETE FROM OrderItems WHERE OrderID = @OrderID");
 
-      
       await pool
         .request()
-        .input("OrderID", sql.Int, id)
+        .input("OrderID", sql.NVarChar(10), id)
         .query("DELETE FROM Orders WHERE OrderID = @OrderID");
 
       return { success: true };

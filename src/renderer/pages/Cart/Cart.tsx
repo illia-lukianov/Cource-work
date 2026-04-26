@@ -70,7 +70,7 @@ export default function Cart() {
       console.log("🚀 ~ handleCheckout ~ user:", user);
 
       const orderData = {
-        userId: user.id,
+        userId: Number(user.id),
         finalAmount: totalPrice,
         items: cartItems.map((item) => ({
           bookId: item.BookId,
