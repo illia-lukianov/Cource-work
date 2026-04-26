@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toggleTheme } from "../../functions/theme";
+import { exportReportToPdf } from "../../helpers/pdfExport";
 import styles from "./Dashboard.module.css";
 
 const Dashboard = () => {
@@ -19,26 +20,20 @@ const Dashboard = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
-
-  // Нові стани для управління ролями
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   const navigate = useNavigate();
 
-  // useEffect для отримання інформації про користувача при завантаженні
   useEffect(() => {
     const loadUserInfo = async () => {
       const role = await window.api.getUserRole();
-      setUserRole(role);
       const admin = await window.api.isAdmin();
-      setIsAdmin(admin);
+      const currentUser = await window.api.getCurrentUser();
+      setUser(currentUser);
 
-      // Якщо це не адмін, не дозволяємо доступ до адмінки
       if (!admin && role !== "Admin") {
         alert("❌ Доступ заборонено: потрібні права адміністратора");
         navigate("/");
-        return;
       }
     };
     loadUserInfo();
@@ -51,30 +46,20 @@ const Dashboard = () => {
   }, [activeTab, reportType]);
 
   const loadCategories = async () => {
-    const res = await window.api.invoke("db:get-categories");
-    if (res) setCategories(res);
+    const res = await window.api.db.getCategories();
+    setCategories(res?.data || []);
   };
 
   const loadOrderDependencies = async () => {
     const [usersRes, booksRes] = await Promise.all([
-      window.api.invoke("db:get-users"),
-      window.api.invoke("db:get-books"),
+      window.api.db.getUsers(),
+      window.api.db.getBooks(),
     ]);
 
-    if (Array.isArray(usersRes)) {
-      setUsers(usersRes);
-    } else if (usersRes?.data) {
-      setUsers(usersRes.data);
-    }
-
-    if (Array.isArray(booksRes)) {
-      setBooks(booksRes);
-    } else if (booksRes?.data) {
-      setBooks(booksRes.data);
-    }
+    setUsers(usersRes?.data || []);
+    setBooks(booksRes?.data || []);
   };
 
-  // Функція для зміни таба з перевіркою ролі
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
   };
@@ -91,59 +76,38 @@ const Dashboard = () => {
       let result;
       if (activeTab === "home") {
         const [booksRes, ordersRaw, usersRaw] = await Promise.all([
-          window.api.invoke("db:get-books"),
-          window.api.invoke("db:get-orders"),
-          window.api.invoke("db:get-users"),
+          window.api.db.getBooks(),
+          window.api.db.getOrders(),
+          window.api.db.getUsers(),
         ]);
-        const books = booksRes?.data || booksRes || [];
+        const books = booksRes?.data || [];
         setStatsData({
           totalRevenue:
-            ordersRaw?.reduce(
+            ordersRaw?.data?.reduce(
               (sum: number, o: any) => sum + (o.FinalAmount || 0),
               0,
             ) || 0,
           pendingOrders:
-            ordersRaw?.filter((o: any) => o.Status?.toLowerCase() === "pending")
-              .length || 0,
-          totalUsers: usersRaw?.length || 0,
+            ordersRaw?.data?.filter(
+              (o: any) => o.Status?.toLowerCase() === "pending",
+            ).length || 0,
+          totalUsers: usersRaw?.data?.length || 0,
           lowStockBooks: books.filter((b: any) => b.TotalStock < 10).length,
           topBooks: [...books]
             .sort((a, b) => (b.TotalSold || 0) - (a.TotalSold || 0))
             .slice(0, 5),
-          recentOrders: ordersRaw?.slice(0, 5) || [],
+          recentOrders: ordersRaw?.data?.slice(0, 5) || [],
         });
         result = { success: true, data: [] };
-      } else if (activeTab === "books")
-        result = await window.api.invoke("db:get-books");
-      else if (activeTab === "orders")
-        result = {
-          success: true,
-          data: await window.api.invoke("db:get-orders"),
-        };
-      else if (activeTab === "users")
-        result = {
-          success: true,
-          data: await window.api.invoke("db:get-users"),
-        };
+      } else if (activeTab === "books") result = await window.api.db.getBooks();
+      else if (activeTab === "orders") result = await window.api.db.getOrders();
+      else if (activeTab === "users") result = await window.api.db.getUsers();
       else if (activeTab === "categories")
-        result = {
-          success: true,
-          data: await window.api.invoke("db:get-categories"),
-        };
+        result = await window.api.db.getCategories();
       else if (activeTab === "reports") {
-        const reportData = await window.api.invoke(
-          "db:get-reports",
-          reportType,
-        );
-        result = {
-          success: true,
-          data: reportData,
-        };
+        result = await window.api.db.getReports(reportType);
       } else if (activeTab === "shop") {
-        result = {
-          success: true,
-          data: await window.api.invoke("db:get-books"),
-        };
+        result = await window.api.db.getBooks();
       }
 
       if (result?.success) setData(result.data || []);
@@ -158,14 +122,8 @@ const Dashboard = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    let channel = "";
     let payload: any = activeTab === "categories" ? formData.name : formData;
-    if (activeTab === "books") channel = "db:create-book";
-    else if (activeTab === "users") channel = "db:create-user";
-    else if (activeTab === "categories") channel = "db:create-category";
-    else if (activeTab === "orders") {
-      channel = "db:create-order";
-      // Фільтруємо тільки валідні елементи (з вибраною книгою та кількістю > 0)
+    if (activeTab === "orders") {
       const items = (formData.items || [])
         .filter((item: any) => item.bookId && Number(item.quantity) > 0)
         .map((item: any) => ({
@@ -185,7 +143,6 @@ const Dashboard = () => {
         return;
       }
 
-      // Розраховуємо загальну суму на основі збережених цін в формі
       const finalAmount = (formData.items || []).reduce(
         (sum: number, item: any) =>
           sum + (item.price || 0) * (item.quantity || 1),
@@ -200,7 +157,17 @@ const Dashboard = () => {
     }
 
     try {
-      const res = await window.api.invoke(channel, payload);
+      let res;
+      if (activeTab === "books") {
+        res = await window.api.db.createBook(payload);
+      } else if (activeTab === "users") {
+        res = await window.api.db.createUser(payload);
+      } else if (activeTab === "categories") {
+        res = await window.api.db.createCategory(payload);
+      } else if (activeTab === "orders") {
+        res = await window.api.db.createOrder(payload);
+      }
+
       if (res?.success) {
         setShowAddModal(false);
         setFormData({});
@@ -213,15 +180,18 @@ const Dashboard = () => {
     }
   };
 
+  const handleExportPdf = () => {
+    if (activeTab !== "reports") return;
+    exportReportToPdf(reportType, data, user?.name);
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    let channel = "";
     let payload: any = {};
 
     if (activeTab === "books") {
-      channel = "db:update-book";
       payload = {
         id: String(editingItem.Id),
         title: (formData.title || editingItem.Title).trim(),
@@ -231,7 +201,6 @@ const Dashboard = () => {
         stock: Number(formData.stock || editingItem.TotalStock),
       };
     } else if (activeTab === "users") {
-      channel = "db:update-user";
       payload = {
         id: String(editingItem.UserID),
         fullName: (formData.fullName || editingItem.FullName).trim(),
@@ -239,7 +208,6 @@ const Dashboard = () => {
         role: formData.role || editingItem.Role,
       };
     } else if (activeTab === "orders") {
-      channel = "db:update-order-status";
       payload = {
         id: String(editingItem.OrderID),
         status: formData.status || editingItem.Status,
@@ -247,7 +215,15 @@ const Dashboard = () => {
     }
 
     try {
-      const res = await window.api.invoke(channel, payload);
+      let res;
+      if (activeTab === "books") {
+        res = await window.api.db.updateBook(payload);
+      } else if (activeTab === "users") {
+        res = await window.api.db.updateUser(payload);
+      } else if (activeTab === "orders") {
+        res = await window.api.db.updateOrderStatus(payload);
+      }
+
       if (res?.success) {
         setShowEditModal(false);
         setEditingItem(null);
@@ -291,16 +267,13 @@ const Dashboard = () => {
   const handleAction = async (action: string, id: string, extra?: any) => {
     if (!window.confirm("Ви впевнені?")) return;
     let res;
-    if (action === "delete-book")
-      res = await window.api.invoke("db:delete-book", id);
-    if (action === "delete-user")
-      res = await window.api.invoke("db:delete-user", id);
+    if (action === "delete-book") res = await window.api.db.deleteBook(id);
+    if (action === "delete-user") res = await window.api.db.deleteUser(id);
     if (action === "delete-category")
-      res = await window.api.invoke("db:delete-category", id);
-    if (action === "delete-order")
-      res = await window.api.invoke("db:delete-order", id);
+      res = await window.api.db.deleteCategory(id);
+    if (action === "delete-order") res = await window.api.db.deleteOrder(id);
     if (action === "status-order")
-      res = await window.api.invoke("db:update-order-status", {
+      res = await window.api.db.updateOrderStatus({
         id,
         status: extra,
       });
@@ -383,20 +356,20 @@ const Dashboard = () => {
           >
             📊 Звіти
           </button>
-
-          <button
-            className={activeTab === "shop" ? styles.active : ""}
-            onClick={(e) => {
-              e.preventDefault();
-              setActiveTab("shop");
-            }}
-          >
-            🛍️ Магазин
-          </button>
         </nav>
         <p>{}</p>
         <button
+          className={styles.shopBtn}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/");
+          }}
+        >
+          🛍️ До магазину
+        </button>
+        <button
           onClick={async () => {
+            localStorage.removeItem("bookstore_user");
             await window.api.logout();
             navigate("/login");
           }}
@@ -477,9 +450,20 @@ const Dashboard = () => {
                 </button>
               </div>
             )}
-            <button className={`${styles.refreshBtn}`} onClick={refreshData}>
-              <span className={`${isLoading ? styles.loading : ""}`}>🔄</span>
-            </button>
+            <div>
+              {activeTab === "reports" && (
+                <button
+                  className={`${styles.exportBtn}`}
+                  onClick={handleExportPdf}
+                  title="Експорт звіту в PDF"
+                >
+                  🖨️ PDF
+                </button>
+              )}
+              <button className={`${styles.refreshBtn}`} onClick={refreshData}>
+                <span className={`${isLoading ? styles.loading : ""}`}>🔄</span>
+              </button>
+            </div>
           </div>
 
           <div className={styles.tableScroll}>

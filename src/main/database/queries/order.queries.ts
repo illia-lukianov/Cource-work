@@ -1,7 +1,7 @@
-export const getAllOrdersQuery = /* sql */ `
+export const getAllOrdersQuery =  `
   SELECT * FROM v_UserOrders ORDER BY OrderDate DESC
 `;
 
-export const updateOrderStatusQuery = /* sql */ `
+export const updateOrderStatusQuery =  `
   UPDATE Orders SET Status = @status WHERE OrderID = @id
 `;

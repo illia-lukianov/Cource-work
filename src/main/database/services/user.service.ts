@@ -2,7 +2,6 @@ import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
 
-// Глобальна змінна для зберігання інформації про поточного користувача
 let currentUser: {
   id: number;
   name: string;
@@ -65,9 +64,13 @@ export const UserRepository = {
         .request()
         .input("FullName", sql.NVarChar, fullName)
         .input("Email", sql.NVarChar, email)
-        .input("PassHash", sql.NVarChar, hashedPassword)
-        .input("Role", sql.NVarChar, role || "User")
-        .execute("sp_CreateUserWithCharID");
+        .input("PasswordHash", sql.NVarChar, hashedPassword)
+        .input("Role", sql.NVarChar, role || "User").query(`
+    INSERT INTO Users (FullName, Email, PasswordHash, Role)
+    VALUES (@FullName, @Email, @PasswordHash, @Role);
+
+    SELECT SCOPE_IDENTITY() AS UserId;
+  `);
 
       const newUser = result.recordset[0];
 
@@ -107,7 +110,6 @@ export const UserRepository = {
           email: user.Email,
         };
 
-        // Переконектюємося до БД з ролю користувача
         await connectDB(user.Role);
 
         console.log(
@@ -171,7 +173,6 @@ export const UserRepository = {
 
       const pool = await connectDB(currentUser?.role);
 
-      // Check if email is already taken by a different user
       const existingUser = await pool
         .request()
         .input("email", sql.NVarChar, data.email)
@@ -203,28 +204,64 @@ export const UserRepository = {
     }
   },
 
-  // Функція для отримання інформації про поточного користувача
-  getCurrentUser() {
-    return currentUser;
+  async getCurrentUser(savedUser?: any): Promise<any> {
+    if (currentUser) return currentUser;
+
+    const payload = savedUser?.savedUser ? savedUser.savedUser : savedUser;
+
+    if (payload && payload.email) {
+      return await this.validateSessionUser(payload);
+    }
+
+    return null;
   },
 
-  // Функція для перевірки чи користувач має права адміністратора
   isAdmin(): boolean {
     return currentUser?.role === "Admin";
   },
 
-  // Функція для перевірки чи користувач має права звичайного користувача
   isUser(): boolean {
     return currentUser?.role === "User";
   },
 
-  // Функція для очищення інформації про користувача при виході
   clearCurrentUser() {
     currentUser = null;
-    console.log("[AUTH] Користувач вийшов з системи");
+    console.log("[AUTH] Користувач вийшов");
   },
 
-  // Функція для отримання ролі поточного користувача
+  async validateSessionUser(user: any) {
+    if (!user || !user.id || !user.email) {
+      console.log("[AUTH] Збережена сесія недійсна");
+      return null;
+    }
+
+    try {
+      const dbUser = await this.findByEmail(user.email);
+      if (!dbUser) {
+        console.log("[AUTH] Користувач більше не існує у БД");
+        return null;
+      }
+
+      currentUser = {
+        id: dbUser.UserID,
+        name: dbUser.FullName,
+        role: dbUser.Role,
+        email: dbUser.Email,
+      };
+
+      await connectDB(dbUser.Role);
+
+      console.log(
+        `[AUTH] Сесія відновлена для: ${dbUser.FullName} (Роль: ${dbUser.Role})`,
+      );
+
+      return currentUser;
+    } catch (err) {
+      console.error("[AUTH] Помилка валідації сесії:", err);
+      return null;
+    }
+  },
+
   getUserRole(): string | null {
     return currentUser?.role || null;
   },

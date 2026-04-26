@@ -8,18 +8,21 @@ import {
 import { UserRepository } from "./user.service";
 
 export const BookRepository = {
+  
   async getAllForDashboard() {
-    const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
+    const pool = await connectDB(UserRepository.getUserRole() ?? "User");
     const result = await pool.request().query(getBookDetailsQuery);
     return result.recordset;
   },
 
+  
   async getAllForUsers() {
-    const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
+    const pool = await connectDB(UserRepository.getUserRole() ?? "User");
     const result = await pool.request().query(getBookForUsersQuery);
     return result.recordset;
   },
 
+  
   async createBook(data: {
     title: string;
     author: string;
@@ -28,7 +31,7 @@ export const BookRepository = {
     stock: number;
   }) {
     try {
-      const pool = await connectDB(UserRepository.getUserRole());
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
       const result = await pool
         .request()
@@ -49,12 +52,19 @@ export const BookRepository = {
     }
   },
 
+  
   async deleteBook(id: string) {
-    const pool = await connectDB(UserRepository.getUserRole());
-    await pool.request().input("id", sql.Int, id).query(deleteBookByIdQuery);
-    return { success: true };
+    try {
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
+      await pool.request().input("id", sql.Int, id).query(deleteBookByIdQuery);
+      return { success: true };
+    } catch (err) {
+      console.error("Erro ao deletar livro:", err);
+      return { success: false, message: "Não foi possível deletar o livro" };
+    }
   },
 
+  
   async updateBook(data: {
     id: string;
     title: string;
@@ -64,7 +74,7 @@ export const BookRepository = {
     stock: number;
   }) {
     try {
-      const pool = await connectDB(UserRepository.getUserRole());
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
       await pool
         .request()

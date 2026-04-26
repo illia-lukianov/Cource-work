@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./Cart.module.css";
 
@@ -31,7 +31,10 @@ export default function Cart() {
   const updateQuantity = (id: number, delta: number) => {
     const newItems = cartItems.map((item) => {
       if (item.BookId === id) {
-        const newQty = Math.max(1, Math.min(item.TotalStock || 100, item.quantity + delta));
+        const newQty = Math.max(
+          1,
+          Math.min(item.TotalStock || 100, item.quantity + delta),
+        );
         return { ...item, quantity: newQty };
       }
       return item;
@@ -46,31 +49,36 @@ export default function Cart() {
     }
   };
 
-  const totalPrice = cartItems.reduce((sum, item) => sum + item.Price * item.quantity, 0);
+  const totalPrice = cartItems.reduce(
+    (sum, item) => sum + item.Price * item.quantity,
+    0,
+  );
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) return;
     setIsSubmitting(true);
 
     try {
-      const user = await window.api.invoke("auth:get-current-user");
-      console.log("🚀 ~ handleCheckout ~ user:", user)
-      
-      if (!user) {
+      const currentUser =
+        localStorage.getItem("bookstore_user") || localStorage.getItem("user");
+      if (!currentUser) {
         alert("Будь ласка, увійдіть в систему для оформлення замовлення");
         navigate("/login");
         return;
       }
+      const user = await window.api.getCurrentUser(JSON.parse(currentUser));
+      console.log("🚀 ~ handleCheckout ~ user:", user);
+
       const orderData = {
         userId: user.id,
         finalAmount: totalPrice,
-        items: cartItems.map(item => ({
+        items: cartItems.map((item) => ({
           bookId: item.BookId,
-          quantity: item.quantity
-        }))
+          quantity: item.quantity,
+        })),
       };
 
-      const res = await window.api.invoke("db:create-order", orderData);
+      const res = await window.api.db.createOrder(orderData);
 
       if (res.success) {
         alert("Замовлення успішно оформлено! 🎉");
@@ -113,20 +121,26 @@ export default function Cart() {
                   <div className={styles.itemInfo}>
                     <h3>{item.Title}</h3>
                     <p>{item.Author}</p>
-                    <span className={styles.unitPrice}>{item.Price} ₴ / шт.</span>
+                    <span className={styles.unitPrice}>
+                      {item.Price} ₴ / шт.
+                    </span>
                   </div>
 
                   <div className={styles.itemActions}>
                     <div className={styles.quantityPicker}>
-                      <button onClick={() => updateQuantity(item.BookId, -1)}>-</button>
+                      <button onClick={() => updateQuantity(item.BookId, -1)}>
+                        -
+                      </button>
                       <span>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.BookId, 1)}>+</button>
+                      <button onClick={() => updateQuantity(item.BookId, 1)}>
+                        +
+                      </button>
                     </div>
                     <div className={styles.itemTotal}>
                       {item.Price * item.quantity} ₴
                     </div>
-                    <button 
-                      className={styles.removeBtn} 
+                    <button
+                      className={styles.removeBtn}
                       onClick={() => removeItem(item.BookId)}
                     >
                       🗑️
@@ -151,8 +165,8 @@ export default function Cart() {
                 <span>Загальна сума:</span>
                 <span>{totalPrice} ₴</span>
               </div>
-              <button 
-                className={styles.checkoutBtn} 
+              <button
+                className={styles.checkoutBtn}
                 onClick={handleCheckout}
                 disabled={isSubmitting}
               >

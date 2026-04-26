@@ -28,6 +28,11 @@
     color: var(--text-main);
 }
 
+.loginSubtitle {
+    margin-bottom: 20px;
+    color: var(--text-main);
+}
+
 .loginForm {
     display: flex;
     flex-direction: column;

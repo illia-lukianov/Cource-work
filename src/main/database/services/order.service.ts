@@ -4,15 +4,22 @@ import { getAllOrdersQuery } from "../queries/order.queries";
 import { UserRepository } from "./user.service";
 
 export const OrderRepository = {
+  
   async getAll() {
-    const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
-    const result = await pool.request().query(getAllOrdersQuery);
-    return result.recordset;
+    try {
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
+      const result = await pool.request().query(getAllOrdersQuery);
+      return result.recordset;
+    } catch (err) {
+      console.error("Erro ao buscar pedidos:", err);
+      return [];
+    }
   },
 
+  
   async updateStatus(id: string, status: string) {
     try {
-      const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
       await pool
         .request()
         .input("OrderID", sql.NVarChar, id)
@@ -20,21 +27,25 @@ export const OrderRepository = {
         .query("UPDATE Orders SET Status = @Status WHERE OrderID = @OrderID");
       return { success: true };
     } catch (err) {
-      console.error("Помилка оновлення статусу:", err);
-      return { success: false };
+      console.error("Erro ao atualizar status do pedido:", err);
+      return { success: false, message: "Não foi possível atualizar o pedido" };
     }
   },
 
+  
   async createOrder(orderData: {
     userId: number;
     finalAmount: number;
     items: { bookId: string; quantity: number }[];
   }) {
     try {
-      const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
       const itemsJson = JSON.stringify(orderData.items);
-      console.log("Sending ItemsJson:", itemsJson);
+      console.log(
+        "[ORDER] Criando novo pedido para usuário:",
+        orderData.userId,
+      );
 
       const result = await pool
         .request()
@@ -48,18 +59,23 @@ export const OrderRepository = {
         orderId: result.recordset[0].OrderID,
       };
     } catch (err) {
-      console.error("Помилка створення замовлення через процедуру:", err);
-      return { success: false, message: "Не вдалося оформити замовлення" };
+      console.error("Erro ao criar pedido:", err);
+      return { success: false, message: "Não foi possível criar o pedido" };
     }
   },
 
+  
   async deleteOrder(id: string) {
     try {
-      const pool = await connectDB(UserRepository.getUserRole() ?? undefined);
-      const request = pool.request();
-      request.input("OrderID", sql.Int, id);
-      await request.query("DELETE FROM OrderItems WHERE OrderID = @OrderID");
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
+      
+      await pool
+        .request()
+        .input("OrderID", sql.Int, id)
+        .query("DELETE FROM OrderItems WHERE OrderID = @OrderID");
+
+      
       await pool
         .request()
         .input("OrderID", sql.Int, id)
@@ -67,8 +83,8 @@ export const OrderRepository = {
 
       return { success: true };
     } catch (err: any) {
-      console.error("Помилка видалення замовлення:", err);
-      return { success: false, message: "Не вдалося видалити замовлення" };
+      console.error("Erro ao deletar pedido:", err);
+      return { success: false, message: "Não foi possível deletar o pedido" };
     }
   },
 };

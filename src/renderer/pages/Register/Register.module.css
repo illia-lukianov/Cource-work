@@ -28,6 +28,11 @@
     color: var(--text-main);
 }
 
+.registerSubtitle {
+    margin-bottom: 20px;
+    color: var(--text-main);
+}
+
 .registerForm {
     display: flex;
     flex-direction: column;

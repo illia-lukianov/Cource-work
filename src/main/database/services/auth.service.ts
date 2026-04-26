@@ -2,11 +2,6 @@ import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
 
-// ⚠️ ПРИМІТКА: Цей файл НЕ ВИКОРИСТОВУЄТЬСЯ!
-// Функціональність перенесена в user.service.ts
-// UserRepository експортується з user.service.ts та використовується в main.ts
-
-// Глобальна змінна для зберігання інформації про поточного користувача
 let currentUser: {
   id: number;
   name: string;
@@ -40,9 +35,13 @@ export const UserRepository = {
         .request()
         .input("FullName", sql.NVarChar, fullName)
         .input("Email", sql.NVarChar, email)
-        .input("PassHash", sql.NVarChar, hashedPassword)
-        .input("Role", sql.NVarChar, role || "User")
-        .execute("sp_CreateUserWithCharID");
+        .input("PasswordHash", sql.NVarChar, hashedPassword)
+        .input("Role", sql.NVarChar, role || "User").query(`
+     INSERT INTO Users (FullName, Email, PasswordHash, Role)
+     VALUES (@FullName, @Email, @PasswordHash, @Role);
+ 
+     SELECT SCOPE_IDENTITY() AS UserId;
+   `);
 
       const newUser = result.recordset[0];
 
@@ -71,7 +70,6 @@ export const UserRepository = {
     const isMatch = await bcrypt.compare(pass, user.PasswordHash);
 
     if (isMatch) {
-      // Зберігаємо інформацію про поточного користувача
       currentUser = {
         id: user.UserID,
         name: user.FullName,
@@ -79,7 +77,6 @@ export const UserRepository = {
         email: user.Email,
       };
 
-      // Переконектюємося до БД з ролю користувача
       await connectDB(user.Role);
 
       console.log(
@@ -100,22 +97,18 @@ export const UserRepository = {
     }
   },
 
-  // Функція для отримання інформації про поточного користувача
   getCurrentUser() {
     return currentUser;
   },
 
-  // Функція для перевірки чи користувач має права адміністратора
   isAdmin(): boolean {
     return currentUser?.role === "Admin" || currentUser?.role === "admin";
   },
 
-  // Функція для перевірки чи користувач має права звичайного користувача
   isUser(): boolean {
     return currentUser?.role === "User" || currentUser?.role === "user";
   },
 
-  // Функція для очищення інформації про користувача при виході
   clearCurrentUser() {
     currentUser = null;
     console.log("[AUTH] Користувач вийшов з системи");

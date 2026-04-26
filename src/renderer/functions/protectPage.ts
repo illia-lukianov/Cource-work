@@ -5,11 +5,11 @@ export default async function protectPage(requiredRole?: "admin" | "user") {
     return false;
   }
 
-  // Якщо требується конкретна роль, перевіряємо її
+  
   if (requiredRole) {
     const userRole = await window.api.getUserRole();
 
-    // Блокування доступу для звичайних користувачів до адмінки
+    
     if (
       requiredRole === "admin" &&
       userRole !== "Admin" &&
@@ -22,13 +22,13 @@ export default async function protectPage(requiredRole?: "admin" | "user") {
       return false;
     }
 
-    // Блокування доступу для адміністраторів до користувацьких сторінок (опціонально)
+    
     if (
       requiredRole === "user" &&
       (userRole === "Admin" || userRole === "admin")
     ) {
-      // Можна дозволити адміністраторам доступ до всіх сторінок
-      // або перенаправити на адмін панель
+      
+      
       console.log(`ℹ️  Адміністратор має повний доступ до системи`);
       return true;
     }
@@ -37,7 +37,7 @@ export default async function protectPage(requiredRole?: "admin" | "user") {
   return true;
 }
 
-// Додаткова функція для перевірки чи користувач має права адміністратора
+
 export async function checkAdminAccess(): Promise<boolean> {
   const isAdmin = await window.api.isAdmin();
   if (!isAdmin) {
@@ -47,7 +47,7 @@ export async function checkAdminAccess(): Promise<boolean> {
   return true;
 }
 
-// Функція для отримання інформації про поточного користувача
+
 export async function getCurrentUserInfo() {
   return await window.api.getCurrentUser();
 }
