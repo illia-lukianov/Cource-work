@@ -1,7 +1,30 @@
-interface Window {
-  api: {
-    login: (data: any) => Promise<any>;
+export interface IElectronAPI {
+  register: (userData: any) => Promise<any>;
+  login: (credentials: any) => Promise<any>;
+  checkAuthStatus: () => Promise<boolean>;
+  logout: () => Promise<any>;
+  validateSession: (savedUser: any) => Promise<any>;
+  getCurrentUser: (savedUser?: any) => Promise<any>;
+  isAdmin: () => Promise<boolean>;
+  getUserRole: () => Promise<string | null>;
+  db: {
     getBooks: () => Promise<any>;
+    getBooksForUsers: () => Promise<any>;
+    getOrders: () => Promise<any>;
+    getUsers: () => Promise<any>;
+    getCategories: () => Promise<any>;
+    getReports: (type: string) => Promise<any>;
+    createBook: (data: any) => Promise<any>;
+    createOrder: (data: any) => Promise<any>;
+    createUser: (data: any) => Promise<any>;
+    createCategory: (name: string) => Promise<any>;
+    updateBook: (data: any) => Promise<any>;
+    updateUser: (data: any) => Promise<any>;
+    updateOrderStatus: (data: any) => Promise<any>;
+    deleteBook: (id: string) => Promise<any>;
+    deleteUser: (id: string) => Promise<any>;
+    deleteCategory: (id: string) => Promise<any>;
+    deleteOrder: (id: string) => Promise<any>;
   };
 }
 

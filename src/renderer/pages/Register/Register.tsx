@@ -12,13 +12,34 @@ const Register = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const isAuth = await window.api.checkAuthStatus();
-      if (isAuth) {
-        navigate("/dashboard");
+    const checkAutoLogin = async () => {
+      try {
+        const savedUser = localStorage.getItem("bookstore_user");
+        if (!savedUser) {
+          console.log("[AUTH] Немає збереженої сесії");
+          setIsLoading(false);
+          return;
+        }
+
+        const user = JSON.parse(savedUser);
+        console.log("[AUTH] Спроба відновити сесію для:", user.email);
+
+        const result = await window.api.validateSession(user);
+
+        if (result.success && result.user) {
+          navigate("/");
+        } else {
+          console.log("[AUTH] Сесія недійсна, видаляю дані");
+          localStorage.removeItem("bookstore_user");
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error("[AUTH] Помилка при перевірці сесії:", err);
+        setIsLoading(false);
       }
     };
-    checkAuth();
+
+    checkAutoLogin();
   }, [navigate]);
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -30,7 +51,7 @@ const Register = () => {
       const result = await window.api.register({ fullName, email, password });
 
       if (result.success) {
-        navigate("/dashboard");
+        navigate("/");
       } else {
         setError(result.message || "Помилка реєстрації");
         setIsLoading(false);
@@ -52,7 +73,7 @@ const Register = () => {
       </button>
       <div className={styles.registerBox}>
         <h1 className={styles.registerTitle}>Створити акаунт</h1>
-        <p>Приєднуйтесь до нашої книжкової спільноти</p>
+        <p className={styles.registerSubtitle}>Приєднуйтесь до нашої книжкової спільноти</p>
 
         <form className={styles.registerForm} onSubmit={handleRegister}>
           <div className={styles.formGroup}>

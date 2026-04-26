@@ -1,30 +1,44 @@
 import sql from "mssql";
 import { connectDB } from "../connectDb";
-import { deleteBookByIdQuery, getAllBooksQuery } from "../queries/book.queries";
+import {
+  deleteBookByIdQuery,
+  getBookDetailsQuery,
+  getBookForUsersQuery,
+} from "../queries/book.queries";
+import { UserRepository } from "./user.service";
 
 export const BookRepository = {
+  
   async getAllForDashboard() {
-    const pool = await connectDB();
-    const result = await pool.request().query(getAllBooksQuery);
+    const pool = await connectDB(UserRepository.getUserRole() ?? "User");
+    const result = await pool.request().query(getBookDetailsQuery);
     return result.recordset;
   },
 
+  
+  async getAllForUsers() {
+    const pool = await connectDB(UserRepository.getUserRole() ?? "User");
+    const result = await pool.request().query(getBookForUsersQuery);
+    return result.recordset;
+  },
+
+  
   async createBook(data: {
     title: string;
     author: string;
     price: number;
-    categoryId: number;
+    categoryId: string;
     stock: number;
   }) {
     try {
-      const pool = await connectDB();
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
       const result = await pool
         .request()
         .input("Title", sql.NVarChar, data.title)
         .input("Author", sql.NVarChar, data.author)
         .input("Price", sql.Decimal(10, 2), data.price)
-        .input("CategoryID", sql.Int, data.categoryId)
+        .input("CategoryID", sql.NVarChar, data.categoryId)
         .input("Quantity", sql.Int, data.stock || 0)
         .execute("sp_CreateBook");
 
@@ -38,33 +52,37 @@ export const BookRepository = {
     }
   },
 
-  async deleteBook(id: string | number) {
-    const pool = await connectDB();
-    await pool
-      .request()
-      .input("id", sql.Int, Number(id))
-      .query(deleteBookByIdQuery);
-    return { success: true };
+  
+  async deleteBook(id: string) {
+    try {
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
+      await pool.request().input("id", sql.Int, id).query(deleteBookByIdQuery);
+      return { success: true };
+    } catch (err) {
+      console.error("Erro ao deletar livro:", err);
+      return { success: false, message: "Não foi possível deletar o livro" };
+    }
   },
 
+  
   async updateBook(data: {
-    id: number;
+    id: string;
     title: string;
     author: string;
     price: number;
-    categoryId: number;
+    categoryId: string;
     stock: number;
   }) {
     try {
-      const pool = await connectDB();
+      const pool = await connectDB(UserRepository.getUserRole() ?? "User");
 
       await pool
         .request()
-        .input("BookID", sql.Int, data.id)
+        .input("BookID", sql.NVarChar, data.id)
         .input("Title", sql.NVarChar, data.title)
         .input("Author", sql.NVarChar, data.author)
         .input("Price", sql.Decimal(10, 2), data.price)
-        .input("CategoryID", sql.Int, data.categoryId)
+        .input("CategoryID", sql.NVarChar, data.categoryId)
         .input("Quantity", sql.Int, data.stock || 0)
         .execute("sp_UpdateBook");
 

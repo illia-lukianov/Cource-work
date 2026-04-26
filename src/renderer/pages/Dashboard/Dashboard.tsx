@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toggleTheme } from "../../functions/theme";
+import { exportReportToPdf } from "../../helpers/pdfExport";
 import styles from "./Dashboard.module.css";
 
 const Dashboard = () => {
@@ -17,8 +18,26 @@ const Dashboard = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<any>({});
   const [categories, setCategories] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [books, setBooks] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      const role = await window.api.getUserRole();
+      const admin = await window.api.isAdmin();
+      const currentUser = await window.api.getCurrentUser();
+      setUser(currentUser);
+
+      if (!admin && role !== "Admin") {
+        alert("❌ Доступ заборонено: потрібні права адміністратора");
+        navigate("/");
+      }
+    };
+    loadUserInfo();
+  }, [navigate]);
 
   useEffect(() => {
     setSearch("");
@@ -27,8 +46,22 @@ const Dashboard = () => {
   }, [activeTab, reportType]);
 
   const loadCategories = async () => {
-    const res = await window.api.invoke("db:get-categories");
-    if (res) setCategories(res);
+    const res = await window.api.db.getCategories();
+    setCategories(res?.data || []);
+  };
+
+  const loadOrderDependencies = async () => {
+    const [usersRes, booksRes] = await Promise.all([
+      window.api.db.getUsers(),
+      window.api.db.getBooks(),
+    ]);
+
+    setUsers(usersRes?.data || []);
+    setBooks(booksRes?.data || []);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
   };
 
   const refreshData = async () => {
@@ -43,54 +76,38 @@ const Dashboard = () => {
       let result;
       if (activeTab === "home") {
         const [booksRes, ordersRaw, usersRaw] = await Promise.all([
-          window.api.invoke("db:get-books"),
-          window.api.invoke("db:get-orders"),
-          window.api.invoke("db:get-users"),
+          window.api.db.getBooks(),
+          window.api.db.getOrders(),
+          window.api.db.getUsers(),
         ]);
         const books = booksRes?.data || [];
         setStatsData({
           totalRevenue:
-            ordersRaw?.reduce(
+            ordersRaw?.data?.reduce(
               (sum: number, o: any) => sum + (o.FinalAmount || 0),
               0,
             ) || 0,
           pendingOrders:
-            ordersRaw?.filter((o: any) => o.Status?.toLowerCase() === "pending")
-              .length || 0,
-          totalUsers: usersRaw?.length || 0,
+            ordersRaw?.data?.filter(
+              (o: any) => o.Status?.toLowerCase() === "pending",
+            ).length || 0,
+          totalUsers: usersRaw?.data?.length || 0,
           lowStockBooks: books.filter((b: any) => b.TotalStock < 10).length,
           topBooks: [...books]
             .sort((a, b) => (b.TotalSold || 0) - (a.TotalSold || 0))
             .slice(0, 5),
-          recentOrders: ordersRaw?.slice(0, 5) || [],
+          recentOrders: ordersRaw?.data?.slice(0, 5) || [],
         });
         result = { success: true, data: [] };
-      } else if (activeTab === "books")
-        result = await window.api.invoke("db:get-books");
-      else if (activeTab === "orders")
-        result = {
-          success: true,
-          data: await window.api.invoke("db:get-orders"),
-        };
-      else if (activeTab === "users")
-        result = {
-          success: true,
-          data: await window.api.invoke("db:get-users"),
-        };
+      } else if (activeTab === "books") result = await window.api.db.getBooks();
+      else if (activeTab === "orders") result = await window.api.db.getOrders();
+      else if (activeTab === "users") result = await window.api.db.getUsers();
       else if (activeTab === "categories")
-        result = {
-          success: true,
-          data: await window.api.invoke("db:get-categories"),
-        };
+        result = await window.api.db.getCategories();
       else if (activeTab === "reports") {
-        const reportData = await window.api.invoke(
-          "db:get-reports",
-          reportType,
-        );
-        result = {
-          success: true,
-          data: reportData,
-        };
+        result = await window.api.db.getReports(reportType);
+      } else if (activeTab === "shop") {
+        result = await window.api.db.getBooks();
       }
 
       if (result?.success) setData(result.data || []);
@@ -105,16 +122,52 @@ const Dashboard = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    let channel = "";
-    if (activeTab === "books") channel = "db:create-book";
-    else if (activeTab === "users") channel = "db:create-user";
-    else if (activeTab === "categories") channel = "db:create-category";
+    let payload: any = activeTab === "categories" ? formData.name : formData;
+    if (activeTab === "orders") {
+      const items = (formData.items || [])
+        .filter((item: any) => item.bookId && Number(item.quantity) > 0)
+        .map((item: any) => ({
+          bookId: String(item.bookId),
+          quantity: Number(item.quantity),
+        }));
+
+      if (!formData.userId) {
+        alert("Оберіть користувача для замовлення");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!items.length) {
+        alert("Додайте хоча б одну книгу до замовлення");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const finalAmount = (formData.items || []).reduce(
+        (sum: number, item: any) =>
+          sum + (item.price || 0) * (item.quantity || 1),
+        0,
+      );
+
+      payload = {
+        userId: String(formData.userId),
+        finalAmount,
+        items,
+      };
+    }
 
     try {
-      const res = await window.api.invoke(
-        channel,
-        activeTab === "categories" ? formData.name : formData,
-      );
+      let res;
+      if (activeTab === "books") {
+        res = await window.api.db.createBook(payload);
+      } else if (activeTab === "users") {
+        res = await window.api.db.createUser(payload);
+      } else if (activeTab === "categories") {
+        res = await window.api.db.createCategory(payload);
+      } else if (activeTab === "orders") {
+        res = await window.api.db.createOrder(payload);
+      }
+
       if (res?.success) {
         setShowAddModal(false);
         setFormData({});
@@ -127,41 +180,50 @@ const Dashboard = () => {
     }
   };
 
+  const handleExportPdf = () => {
+    if (activeTab !== "reports") return;
+    exportReportToPdf(reportType, data, user?.name);
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    let channel = "";
     let payload: any = {};
 
     if (activeTab === "books") {
-      channel = "db:update-book";
       payload = {
-        id: Number(editingItem.Id),
+        id: String(editingItem.Id),
         title: (formData.title || editingItem.Title).trim(),
         author: (formData.author || editingItem.Author).trim(),
         price: Number(formData.price || editingItem.Price),
-        categoryId: Number(formData.categoryId || editingItem.CategoryID),
+        categoryId: String(formData.categoryId || editingItem.CategoryID),
         stock: Number(formData.stock || editingItem.TotalStock),
       };
     } else if (activeTab === "users") {
-      channel = "db:update-user";
       payload = {
-        id: Number(editingItem.UserID),
+        id: String(editingItem.UserID),
         fullName: (formData.fullName || editingItem.FullName).trim(),
         email: (formData.email || editingItem.Email).trim(),
         role: formData.role || editingItem.Role,
       };
     } else if (activeTab === "orders") {
-      channel = "db:update-order-status";
       payload = {
-        id: Number(editingItem.OrderID),
+        id: String(editingItem.OrderID),
         status: formData.status || editingItem.Status,
       };
     }
 
     try {
-      const res = await window.api.invoke(channel, payload);
+      let res;
+      if (activeTab === "books") {
+        res = await window.api.db.updateBook(payload);
+      } else if (activeTab === "users") {
+        res = await window.api.db.updateUser(payload);
+      } else if (activeTab === "orders") {
+        res = await window.api.db.updateOrderStatus(payload);
+      }
+
       if (res?.success) {
         setShowEditModal(false);
         setEditingItem(null);
@@ -205,16 +267,13 @@ const Dashboard = () => {
   const handleAction = async (action: string, id: string, extra?: any) => {
     if (!window.confirm("Ви впевнені?")) return;
     let res;
-    if (action === "delete-book")
-      res = await window.api.invoke("db:delete-book", id);
-    if (action === "delete-user")
-      res = await window.api.invoke("db:delete-user", id);
+    if (action === "delete-book") res = await window.api.db.deleteBook(id);
+    if (action === "delete-user") res = await window.api.db.deleteUser(id);
     if (action === "delete-category")
-      res = await window.api.invoke("db:delete-category", id);
-    if (action === "delete-order")
-      res = await window.api.invoke("db:delete-order", id);
+      res = await window.api.db.deleteCategory(id);
+    if (action === "delete-order") res = await window.api.db.deleteOrder(id);
     if (action === "status-order")
-      res = await window.api.invoke("db:update-order-status", {
+      res = await window.api.db.updateOrderStatus({
         id,
         status: extra,
       });
@@ -262,7 +321,7 @@ const Dashboard = () => {
             className={activeTab === "categories" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
-              setActiveTab("categories");
+              handleTabChange("categories");
             }}
           >
             📂 Категорії
@@ -282,7 +341,7 @@ const Dashboard = () => {
             className={activeTab === "users" ? styles.active : ""}
             onClick={(e) => {
               e.preventDefault();
-              setActiveTab("users");
+              handleTabChange("users");
             }}
           >
             👥 Користувачі
@@ -298,8 +357,19 @@ const Dashboard = () => {
             📊 Звіти
           </button>
         </nav>
+        <p>{}</p>
+        <button
+          className={styles.shopBtn}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/");
+          }}
+        >
+          🛍️ До магазину
+        </button>
         <button
           onClick={async () => {
+            localStorage.removeItem("bookstore_user");
             await window.api.logout();
             navigate("/login");
           }}
@@ -320,11 +390,22 @@ const Dashboard = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              {["books", "users", "categories"].includes(activeTab) && (
+              {["books", "users", "categories", "orders"].includes(
+                activeTab,
+              ) && (
                 <button
                   className={styles.addBtn}
-                  onClick={() => {
-                    setFormData({});
+                  onClick={async () => {
+                    if (activeTab === "orders") {
+                      await loadOrderDependencies();
+                      setFormData({
+                        userId: "",
+                        items: [{ bookId: "", quantity: 1 }],
+                        total: 0,
+                      });
+                    } else {
+                      setFormData({});
+                    }
                     setShowAddModal(true);
                   }}
                 >
@@ -369,12 +450,20 @@ const Dashboard = () => {
                 </button>
               </div>
             )}
-            <button
-              className={`${styles.refreshBtn} ${isLoading ? styles.loading : ""}`}
-              onClick={refreshData}
-            >
-              🔄
-            </button>
+            <div>
+              {activeTab === "reports" && (
+                <button
+                  className={`${styles.exportBtn}`}
+                  onClick={handleExportPdf}
+                  title="Експорт звіту в PDF"
+                >
+                  🖨️ PDF
+                </button>
+              )}
+              <button className={`${styles.refreshBtn}`} onClick={refreshData}>
+                <span className={`${isLoading ? styles.loading : ""}`}>🔄</span>
+              </button>
+            </div>
           </div>
 
           <div className={styles.tableScroll}>
@@ -486,6 +575,15 @@ const Dashboard = () => {
                         <th>Дата зміни</th>
                       </tr>
                     )}
+                  {activeTab === "shop" && (
+                    <tr>
+                      <th>Назва</th>
+                      <th>Автор</th>
+                      <th>Ціна</th>
+                      <th>Склад</th>
+                      <th>Категорія</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {filteredData.map((item: any) => (
@@ -652,6 +750,29 @@ const Dashboard = () => {
                             </td>
                           </>
                         )}
+                      {activeTab === "shop" && (
+                        <>
+                          <td>
+                            <b>{item.Title}</b>
+                          </td>
+                          <td>{item.Author}</td>
+                          <td className={styles.priceHighlight}>
+                            {item.Price} ₴
+                          </td>
+                          <td>
+                            {item.TotalStock > 0 ? (
+                              <span className={styles.inStock}>
+                                ✅ {item.TotalStock} шт
+                              </span>
+                            ) : (
+                              <span className={styles.outOfStock}>
+                                ❌ Немає в наявності
+                              </span>
+                            )}
+                          </td>
+                          <td>{item.CategoryName || "Без категорії"}</td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -669,7 +790,9 @@ const Dashboard = () => {
                 ? "📂 Нова категорія"
                 : activeTab === "books"
                   ? "📖 Додати книгу"
-                  : "👥 Новий користувач"}
+                  : activeTab === "users"
+                    ? "👥 Новий користувач"
+                    : "📦 Нове замовлення"}
             </h3>
             <form onSubmit={handleCreate}>
               {activeTab === "categories" && (
@@ -751,6 +874,98 @@ const Dashboard = () => {
                       setFormData({ ...formData, password: e.target.value })
                     }
                   />
+                </>
+              )}
+              {activeTab === "orders" && (
+                <>
+                  <select
+                    required
+                    value={formData.userId || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, userId: e.target.value })
+                    }
+                  >
+                    <option value="">Оберіть користувача</option>
+                    {users.map((u) => (
+                      <option key={u.UserID} value={u.UserID}>
+                        {u.FullName} ({u.Email})
+                      </option>
+                    ))}
+                  </select>
+                  <div className={styles.orderItems}>
+                    {formData.items?.map((item: any, index: number) => (
+                      <div key={index} className={styles.orderItem}>
+                        <select
+                          required
+                          value={item.bookId || ""}
+                          onChange={(e) => {
+                            const newItems = [...formData.items];
+                            newItems[index].bookId = e.target.value;
+                            const selectedBook = books.find(
+                              (b) => b.Id == e.target.value,
+                            );
+                            newItems[index].price = selectedBook
+                              ? selectedBook.Price
+                              : 0;
+                            setFormData({ ...formData, items: newItems });
+                          }}
+                        >
+                          <option value="">Оберіть книгу</option>
+                          {books.map((b) => (
+                            <option key={b.Id} value={b.Id}>
+                              {b.Title} - {b.Price}₴
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          required
+                          type="number"
+                          min="1"
+                          value={item.quantity || 1}
+                          onChange={(e) => {
+                            const newItems = [...formData.items];
+                            newItems[index].quantity = Number(e.target.value);
+                            setFormData({ ...formData, items: newItems });
+                          }}
+                        />
+                        <span>{(item.price || 0) * (item.quantity || 1)}₴</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newItems = formData.items.filter(
+                              (_: any, i: number) => i !== index,
+                            );
+                            setFormData({ ...formData, items: newItems });
+                          }}
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          items: [
+                            ...formData.items,
+                            { bookId: "", quantity: 1 },
+                          ],
+                        })
+                      }
+                    >
+                      + Додати книгу
+                    </button>
+                  </div>
+                  <div className={styles.total}>
+                    Загальна сума:{" "}
+                    {formData.items?.reduce(
+                      (sum: number, item: any) =>
+                        sum + (item.price || 0) * (item.quantity || 1),
+                      0,
+                    ) || 0}
+                    ₴
+                  </div>
                 </>
               )}
               <div className={styles.modalActions}>

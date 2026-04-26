@@ -1,7 +1,13 @@
 import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
-import { findUserByEmailQuery } from "../queries/auth.queries";
+
+let currentUser: {
+  id: number;
+  name: string;
+  role: string;
+  email: string;
+} | null = null;
 
 export const UserRepository = {
   async findByEmail(email: string) {
@@ -9,7 +15,7 @@ export const UserRepository = {
     const result = await pool
       .request()
       .input("email", sql.NVarChar, email)
-      .query(findUserByEmailQuery);
+      .query(`SELECT * FROM Users WHERE Email = @email`);
     return result.recordset[0] || null;
   },
 
@@ -29,9 +35,13 @@ export const UserRepository = {
         .request()
         .input("FullName", sql.NVarChar, fullName)
         .input("Email", sql.NVarChar, email)
-        .input("PassHash", sql.NVarChar, hashedPassword)
-        .input("Role", sql.NVarChar, role || "User")
-        .execute("sp_RegisterUser");
+        .input("PasswordHash", sql.NVarChar, hashedPassword)
+        .input("Role", sql.NVarChar, role || "User").query(`
+     INSERT INTO Users (FullName, Email, PasswordHash, Role)
+     VALUES (@FullName, @Email, @PasswordHash, @Role);
+ 
+     SELECT SCOPE_IDENTITY() AS UserId;
+   `);
 
       const newUser = result.recordset[0];
 
@@ -60,12 +70,47 @@ export const UserRepository = {
     const isMatch = await bcrypt.compare(pass, user.PasswordHash);
 
     if (isMatch) {
+      currentUser = {
+        id: user.UserID,
+        name: user.FullName,
+        role: user.Role,
+        email: user.Email,
+      };
+
+      await connectDB(user.Role);
+
+      console.log(
+        `[AUTH] Користувач авторизований: ${user.FullName} (Роль: ${user.Role})`,
+      );
+
       return {
         success: true,
-        user: { id: user.UserID, name: user.FullName, role: user.Role },
+        user: {
+          id: user.UserID,
+          name: user.FullName,
+          role: user.Role,
+          email: user.Email,
+        },
       };
     } else {
       return { success: false, message: "Невірний пароль" };
     }
+  },
+
+  getCurrentUser() {
+    return currentUser;
+  },
+
+  isAdmin(): boolean {
+    return currentUser?.role === "Admin" || currentUser?.role === "admin";
+  },
+
+  isUser(): boolean {
+    return currentUser?.role === "User" || currentUser?.role === "user";
+  },
+
+  clearCurrentUser() {
+    currentUser = null;
+    console.log("[AUTH] Користувач вийшов з системи");
   },
 };

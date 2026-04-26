@@ -1,7 +1,13 @@
 import bcrypt from "bcryptjs";
 import sql from "mssql";
 import { connectDB } from "../connectDb";
-import { getUserByEmailQuery } from "../queries/user.queries";
+
+let currentUser: {
+  id: number;
+  name: string;
+  role: "Admin" | "User";
+  email: string;
+} | null = null;
 
 export const Validators = {
   isValidEmail(email: string): boolean {
@@ -28,7 +34,7 @@ export const UserRepository = {
     const result = await pool
       .request()
       .input("email", sql.NVarChar, email)
-      .query(getUserByEmailQuery);
+      .query(`SELECT * FROM Users WHERE Email = @email`);
     return result.recordset[0] || null;
   },
 
@@ -58,11 +64,15 @@ export const UserRepository = {
         .request()
         .input("FullName", sql.NVarChar, fullName)
         .input("Email", sql.NVarChar, email)
-        .input("PassHash", sql.NVarChar, hashedPassword)
-        .input("Role", sql.NVarChar, role || "User")
-        .execute("sp_CreateUser");
+        .input("PasswordHash", sql.NVarChar, hashedPassword)
+        .input("Role", sql.NVarChar, role || "User").query(`
+    INSERT INTO Users (FullName, Email, PasswordHash, Role)
+    VALUES (@FullName, @Email, @PasswordHash, @Role);
 
-      const newUser = await this.findByEmail(email);
+    SELECT SCOPE_IDENTITY() AS UserId;
+  `);
+
+      const newUser = result.recordset[0];
 
       return {
         success: true,
@@ -93,12 +103,26 @@ export const UserRepository = {
       const isMatch = await bcrypt.compare(pass, user.PasswordHash);
 
       if (isMatch) {
+        currentUser = {
+          id: user.UserID,
+          name: user.FullName,
+          role: user.Role,
+          email: user.Email,
+        };
+
+        await connectDB(user.Role);
+
+        console.log(
+          `[AUTH] Користувач авторизований: ${user.FullName} (Роль: ${user.Role})`,
+        );
+
         return {
           success: true,
           user: {
             id: user.UserID,
             name: user.FullName,
             role: user.Role,
+            email: user.Email,
           },
         };
       } else {
@@ -111,20 +135,20 @@ export const UserRepository = {
   },
 
   async getAll() {
-    const pool = await connectDB();
+    const pool = await connectDB(currentUser?.role);
     const result = await pool
       .request()
       .query(`SELECT UserID, FullName, Email, Role FROM Users`);
     return result.recordset;
   },
 
-  async delete(id: string | number) {
+  async delete(id: string) {
     try {
-      const pool = await connectDB();
+      const pool = await connectDB(currentUser?.role);
       await pool
         .request()
-        .input("ID", sql.Int, Number(id))
-        .execute("sp_DeleteUser");
+        .input("ID", sql.NVarChar, id)
+        .query("DELETE FROM Users WHERE UserID = @ID");
       return { success: true };
     } catch (err: any) {
       return {
@@ -135,7 +159,7 @@ export const UserRepository = {
   },
 
   async update(data: {
-    id: number;
+    id: string;
     fullName: string;
     email: string;
     role: string;
@@ -147,15 +171,14 @@ export const UserRepository = {
       if (!Validators.isValidEmail(data.email))
         return { success: false, message: "Невірний формат Email" };
 
-      const pool = await connectDB();
+      const pool = await connectDB(currentUser?.role);
 
-      // Check if email is already taken by a different user
       const existingUser = await pool
         .request()
         .input("email", sql.NVarChar, data.email)
+        .input("userId", sql.NVarChar, data.id)
         .query(
-          "SELECT UserID FROM Users WHERE Email = @email AND UserID != " +
-            data.id,
+          "SELECT UserID FROM Users WHERE Email = @email AND UserID != @userId",
         );
 
       if (existingUser.recordset.length > 0)
@@ -166,16 +189,80 @@ export const UserRepository = {
 
       await pool
         .request()
-        .input("UserID", sql.Int, data.id)
+        .input("UserID", sql.NVarChar, data.id)
         .input("FullName", sql.NVarChar, data.fullName)
         .input("Email", sql.NVarChar, data.email)
         .input("Role", sql.NVarChar, data.role)
-        .execute("sp_UpdateUser");
+        .query(
+          "UPDATE Users SET FullName = @FullName, Email = @Email, Role = @Role WHERE UserID = @UserID",
+        );
 
       return { success: true };
     } catch (err: any) {
       console.error("Помилка оновлення користувача:", err);
       return { success: false, message: "Не вдалося оновити користувача" };
     }
+  },
+
+  async getCurrentUser(savedUser?: any): Promise<any> {
+    if (currentUser) return currentUser;
+
+    const payload = savedUser?.savedUser ? savedUser.savedUser : savedUser;
+
+    if (payload && payload.email) {
+      return await this.validateSessionUser(payload);
+    }
+
+    return null;
+  },
+
+  isAdmin(): boolean {
+    return currentUser?.role === "Admin";
+  },
+
+  isUser(): boolean {
+    return currentUser?.role === "User";
+  },
+
+  clearCurrentUser() {
+    currentUser = null;
+    console.log("[AUTH] Користувач вийшов");
+  },
+
+  async validateSessionUser(user: any) {
+    if (!user || !user.id || !user.email) {
+      console.log("[AUTH] Збережена сесія недійсна");
+      return null;
+    }
+
+    try {
+      const dbUser = await this.findByEmail(user.email);
+      if (!dbUser) {
+        console.log("[AUTH] Користувач більше не існує у БД");
+        return null;
+      }
+
+      currentUser = {
+        id: dbUser.UserID,
+        name: dbUser.FullName,
+        role: dbUser.Role,
+        email: dbUser.Email,
+      };
+
+      await connectDB(dbUser.Role);
+
+      console.log(
+        `[AUTH] Сесія відновлена для: ${dbUser.FullName} (Роль: ${dbUser.Role})`,
+      );
+
+      return currentUser;
+    } catch (err) {
+      console.error("[AUTH] Помилка валідації сесії:", err);
+      return null;
+    }
+  },
+
+  getUserRole(): string | null {
+    return currentUser?.role || null;
   },
 };
